@@ -244,7 +244,7 @@ public class NeVasilekFarmilka extends BaseModule {
    private final ModeSetting.Value enchantPoison = new ModeSetting.Value(this.targetEnchant, "Яд", "", () -> !this.section.is(this.secSword));
    private final ModeSetting.Value enchantVampirism = new ModeSetting.Value(this.targetEnchant, "Вампиризм", "", HIDDEN_SETTING);
    private final ModeSetting.Value enchantOxidation = new ModeSetting.Value(this.targetEnchant, "Окисление", "", HIDDEN_SETTING);
-   private final SliderSetting actionDelay = new SliderSetting(this, "Задержка действий", HIDDEN_SETTING).min(1.0F).max(2000.0F).step(1.0F).currentValue(250.0F).suffix("ms");
+   private final SliderSetting actionDelay = new SliderSetting(this, "Задержка действий", HIDDEN_SETTING).min(1.0F).max(2000.0F).step(1.0F).currentValue(50.0F).suffix("ms");
    private final SliderSetting searchTimeoutMs = new SliderSetting(this, "Таймаут поиска", HIDDEN_SETTING)
       .min(1000.0F)
       .max(20000.0F)
@@ -4659,7 +4659,7 @@ public class NeVasilekFarmilka extends BaseModule {
    }
 
    private long delayMs() {
-      return 250L;
+      return 50L;
    }
 
    private long buyDelayMs() {
