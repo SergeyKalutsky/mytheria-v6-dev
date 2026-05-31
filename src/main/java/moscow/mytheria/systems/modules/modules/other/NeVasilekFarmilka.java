@@ -1060,6 +1060,12 @@ public class NeVasilekFarmilka extends BaseModule {
                }
             } else {
                boolean var5 = this.relistPending || false;
+               if (this.isSwordMode() && this.hasAnvilCandidates()) {
+                  this.setState(NeVasilekFarmilka.State.ANVIL_OPEN);
+                  this.actionTimer.reset();
+                  return;
+               }
+
                int var4 = this.findPickaxeSlotWithAnyEnchant(var5);
                if (var4 != -1) {
                   this.setState(NeVasilekFarmilka.State.GRIND_OPEN);
@@ -1745,6 +1751,12 @@ public class NeVasilekFarmilka extends BaseModule {
          }
       } else {
          boolean var5 = this.relistPending || false;
+         if (this.isSwordMode() && this.hasAnvilCandidates()) {
+            this.setState(NeVasilekFarmilka.State.ANVIL_OPEN);
+            this.actionTimer.reset();
+            return;
+         }
+
          int var4 = this.findPickaxeSlotWithAnyEnchant(var5);
          if (var4 != -1) {
             if (!this.isSwordMode()) {
@@ -2923,7 +2935,10 @@ public class NeVasilekFarmilka extends BaseModule {
    private int findPickaxeSlotWithBad() {
       for (int var1 = 0; var1 < mc.field_1724.method_31548().method_5439(); var1++) {
          class_1799 var2 = mc.field_1724.method_31548().method_5438(var1);
-         if (!var2.method_7960() && this.isTargetOutputItem(var2) && this.hasBadEnchant(var2)) {
+         if (!var2.method_7960()
+            && this.isTargetOutputItem(var2)
+            && (!this.isSwordMode() || !this.isSharpnessSword(var2))
+            && this.hasBadEnchant(var2)) {
             return var1;
          }
       }
@@ -2938,7 +2953,11 @@ public class NeVasilekFarmilka extends BaseModule {
    private int findPickaxeSlotWithAnyEnchant(boolean var1) {
       for (int var2 = 0; var2 < mc.field_1724.method_31548().method_5439(); var2++) {
          class_1799 var3 = mc.field_1724.method_31548().method_5438(var2);
-         if (!var3.method_7960() && this.isTargetOutputItem(var3) && (!var1 || !this.hasTargetEnchant(var3)) && this.hasAnyEnchant(var3)) {
+         if (!var3.method_7960()
+            && this.isTargetOutputItem(var3)
+            && (!this.isSwordMode() || this.isGrindableSword(var3))
+            && (!var1 || !this.hasTargetEnchant(var3))
+            && this.hasAnyEnchant(var3)) {
             return var2;
          }
       }
@@ -4776,33 +4795,25 @@ public class NeVasilekFarmilka extends BaseModule {
    }
 
    private int[] findAnvilCandidates() {
-      for (int var1 = 0; var1 < mc.field_1724.method_31548().method_5439(); var1++) {
-         class_1799 var3 = mc.field_1724.method_31548().method_5438(var1);
-         if (!var3.method_7960() && !this.hasBadEnchant(var3) && !this.isFinalSword(var3)) {
-            for (int var2 = var1 + 1; var2 < mc.field_1724.method_31548().method_5439(); var2++) {
-               class_1799 var4 = mc.field_1724.method_31548().method_5438(var2);
-               if (!var4.method_7960() && !this.hasBadEnchant(var4) && !this.isFinalSword(var4) && this.shouldCombineSword(var3, var4)) {
-                  return new int[]{var1, var2};
-               }
+      int var1 = -1;
+      int var2 = -1;
+
+      for (int var3 = 0; var3 < mc.field_1724.method_31548().method_5439(); var3++) {
+         class_1799 var4 = mc.field_1724.method_31548().method_5438(var3);
+         if (!var4.method_7960() && !this.hasBadEnchant(var4) && !this.isFinalSword(var4)) {
+            if (var1 == -1 && this.isSharpnessSword(var4)) {
+               var1 = var3;
+            } else if (var2 == -1 && this.isPoisonSword(var4)) {
+               var2 = var3;
             }
          }
       }
 
-      return null;
+      return var1 != -1 && var2 != -1 ? new int[]{var1, var2} : null;
    }
 
    private boolean shouldCombineSword(class_1799 var1, class_1799 var2) {
-      if (var1 != null && var2 != null) {
-         if (this.isSharpnessSword(var1) && this.isPoisonSword(var2)) {
-            return true;
-         }
-
-         if (this.isSharpnessSword(var2) && this.isPoisonSword(var1)) {
-            return true;
-         }
-      }
-
-      return false;
+      return var1 != null && var2 != null && this.isSharpnessSword(var1) && this.isPoisonSword(var2);
    }
 
    private void buildSwordBuyRequests() {
@@ -5058,6 +5069,15 @@ public class NeVasilekFarmilka extends BaseModule {
       }
 
       return -1;
+   }
+
+   private boolean isGrindableSword(class_1799 var1) {
+      return var1 != null
+         && !var1.method_7960()
+         && var1.method_7909() == class_1802.field_22022
+         && !this.isSharpnessSword(var1)
+         && !this.isFinalSword(var1)
+         && !this.isPoisonSword(var1);
    }
 
    private boolean stackContainsText(class_1799 var1, String... var2) {
