@@ -45,35 +45,45 @@ java {
 }
 
 // --------------------------------------------------------------------------
-// Overlay compiled classes onto the extracted v6 folder, then repack to mods.
+// Deploy: merge our recompiled classes OVER the base mod JAR, write to mods/.
+// Self-contained: the only required input is libs/mytheria-v6.jar.
 // --------------------------------------------------------------------------
 
 ext {
-    // The extracted v6 mod folder (source of truth we overlay onto).
-    mytheriaFolder = file('../mytheria-2.0.6-autoenchanter-version-toggle-v6-old-clickgui')
-    modsFolder = file("$System.env.APPDATA/.tlauncher/legacy/Minecraft/game/mods")
+    // The original, unmodified v6 mod JAR we build on top of.
+    baseJar = file('libs/mytheria-v6.jar')
+
+    // Where the built mod JAR is deployed. Override via `mods_dir` in
+    // gradle.properties (or -Pmods_dir=...). Defaults to TLauncher's legacy path.
+    def defaultMods = "$System.env.APPDATA/.tlauncher/legacy/Minecraft/game/mods"
+    modsFolder = file(project.findProperty('mods_dir') ?: defaultMods)
 }
 
-task overlayClasses(dependsOn: 'remapJar') {
-    description = 'Extract remapped classes and overlay onto the v6 folder'
+// Build a working copy of the mod: extract the base JAR, then overwrite with
+// our recompiled classes. Two sequential copies = deterministic (ours always win).
+task prepareModDir(dependsOn: 'remapJar') {
+    description = 'Extract base mod JAR and overlay our recompiled classes'
+    def workDir = file("$buildDir/mod-work")
     doLast {
-        def remappedJar = tasks.remapJar.archiveFile.get().asFile
-        copy {
-            from zipTree(remappedJar)
-            into mytheriaFolder
+        delete workDir
+        copy {                                   // 1. base mod (assets, mixins, all classes)
+            from zipTree(baseJar)
+            into workDir
+        }
+        copy {                                   // 2. our classes overwrite the originals
+            from zipTree(tasks.remapJar.archiveFile.get().asFile)
+            into workDir
             include '**/*.class'
         }
-        println "Overlaid classes from ${remappedJar.name} onto ${mytheriaFolder}"
+        println "Prepared mod working dir at ${workDir}"
     }
 }
 
-task repackJar(type: Zip, dependsOn: 'overlayClasses') {
-    description = 'Repack the v6 folder into the active mod JAR in the mods directory'
-    // Deploys under the SAME name as the active mod so it replaces it in-game.
-    archiveFileName = 'mytheria-2.0.6.jar'
+task repackJar(type: Zip, dependsOn: 'prepareModDir') {
+    description = 'Zip the working dir into the active mod JAR in mods/'
+    archiveFileName = 'mytheria-2.0.6.jar'   // same name the game loads -> replaces active mod
     destinationDirectory = modsFolder
-    from mytheriaFolder
-    exclude '.git/**', 'README.md', '.gitignore'
+    from file("$buildDir/mod-work")
     doLast {
         println "Wrote ${archiveFile.get().asFile} " +
                 "(${(archiveFile.get().asFile.length() / 1024 / 1024).round(2)} MB)"
@@ -81,5 +91,10 @@ task repackJar(type: Zip, dependsOn: 'overlayClasses') {
 }
 
 task deploy(dependsOn: 'repackJar') {
-    description = 'Full build: compile -> remap -> overlay -> repack -> deploy v6 to mods'
+    description = 'Full build: compile -> remap -> merge over base JAR -> deploy to mods/'
+    doFirst {
+        if (!baseJar.exists()) {
+            throw new GradleException("Missing ${baseJar}. Place the original v6 mod JAR there (see README).")
+        }
+    }
 }

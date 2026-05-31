@@ -1,50 +1,41 @@
-# Gradle
+# Gradle / build output
 .gradle/
 build/
 out/
-!gradle/wrapper/gradle-wrapper.jar
 
-# IntelliJ IDEA
+# IDE
 .idea/
 *.iml
 *.ipr
 *.iws
-
-# Eclipse
 .classpath
 .project
 .settings/
 bin/
-
-# VS Code
 .vscode/
 
-# macOS
+# OS noise
 .DS_Store
-
-# Windows
 Thumbs.db
 ehthumbs.db
 
-# Java
+# Compiled class files (sources live in src/)
 *.class
-*.jar
-*.war
-*.ear
-*.nar
 
-# Fabric / Minecraft mod
+# Fabric / Minecraft run artifacts
 run/
 logs/
 crash-reports/
 .fabric/
 
-# Decompiled sources (usually generated)
+# Decompiled reference (large; regenerate with Vineflower — see README)
 decompiled/
 
-# Local properties (may contain secrets/paths)
+# Local machine config (paths/secrets)
 local.properties
 gradle-local.properties
 
-# Compiled outputs
-libs/
+# Ignore stray JARs, but KEEP the two we must commit:
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+!libs/mytheria-v6.jar
