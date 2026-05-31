@@ -16,7 +16,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -4991,6 +4990,15 @@ public class NeVasilekFarmilka extends BaseModule {
       int[] var3 = this.getAuctionPageInfo();
       boolean var4 = var3 == null || var3[0] < var3[1];
       int var7 = var4 ? this.findAuctionButtonSlot(var1, var2, "следующаястраница", "nextpage") : -1;
+      if (var7 == -1 && var4) {
+         var7 = this.findAuctionButtonSlot(
+            var1,
+            var2,
+            "\u0441\u043b\u0435\u0434\u0443\u044e\u0449\u0430\u044f\u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0430",
+            "\u0434\u0430\u043b\u0435\u0435"
+         );
+      }
+
       if (var7 == -1 && !var4) {
          var7 = this.findAuctionButtonSlot(var1, var2, "обновить", "refresh");
       }
@@ -4999,7 +5007,18 @@ public class NeVasilekFarmilka extends BaseModule {
          var7 = this.findAuctionButtonSlot(var1, var2, "обновить", "refresh");
       }
 
+      if (var7 == -1 && !var4) {
+         var7 = this.findAuctionButtonSlot(var1, var2, "\u043e\u0431\u043d\u043e\u0432\u0438\u0442\u044c");
+      }
+
       if (var7 == -1) {
+         if (var3 != null) {
+            this.buyNavigationCooldownUntilMs = var5 + 750L;
+            this.buyTimer.reset();
+            this.actionTimer.reset();
+            return true;
+         }
+
          return false;
       }
 
@@ -5030,10 +5049,10 @@ public class NeVasilekFarmilka extends BaseModule {
       }
    }
 
-   private int findAuctionButtonSlot(class_1703 var1, int var2, String var3, String var4) {
+   private int findAuctionButtonSlot(class_1703 var1, int var2, String... var3) {
       for (int var5 = 0; var5 < var2; var5++) {
          class_1799 var6 = ((class_1735)var1.field_7761.get(var5)).method_7677();
-         if (!var6.method_7960() && this.stackContainsText(var6, var3, var4)) {
+         if (!var6.method_7960() && this.stackContainsText(var6, var3)) {
             return var5;
          }
       }
@@ -5041,21 +5060,31 @@ public class NeVasilekFarmilka extends BaseModule {
       return -1;
    }
 
-   private boolean stackContainsText(class_1799 var1, String var2, String var3) {
-      String var4 = this.normalizeLettersOnly(this.getItemName(var1));
-      if (!var4.contains(var2) && !var4.contains(var3)) {
-         Iterator var5 = this.getLoreLines(var1).iterator();
-
-         do {
-            if (!var5.hasNext()) {
-               return false;
-            }
-
-            var4 = this.normalizeLettersOnly(stripFormatting((String)var5.next()));
-         } while (!var4.contains(var2) && !var4.contains(var3));
+   private boolean stackContainsText(class_1799 var1, String... var2) {
+      if (this.textContainsAnyNeedle(this.getItemName(var1), var2)) {
+         return true;
       }
 
-      return true;
+      for (String var4 : this.getLoreLines(var1)) {
+         if (this.textContainsAnyNeedle(stripFormatting(var4), var2)) {
+            return true;
+         }
+      }
+
+      return false;
+   }
+
+   private boolean textContainsAnyNeedle(String var1, String... var2) {
+      String var3 = this.normalizeLettersOnly(var1);
+
+      for (String var6 : var2) {
+         String var5 = this.normalizeLettersOnly(var6);
+         if (!var5.isBlank() && var3.contains(var5)) {
+            return true;
+         }
+      }
+
+      return false;
    }
 
    private static class BuyRequest {
