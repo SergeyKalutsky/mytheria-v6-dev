@@ -1,6 +1,7 @@
 package moscow.mytheria.systems.modules.modules.other;
 
 import it.unimi.dsi.fastutil.objects.Object2IntMap.Entry;
+import hook.aeu;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -65,6 +66,8 @@ import net.minecraft.class_3965;
 import net.minecraft.class_437;
 import net.minecraft.class_465;
 import net.minecraft.class_4862;
+import net.minecraft.class_639;
+import net.minecraft.class_642;
 import net.minecraft.class_6880;
 import net.minecraft.class_9290;
 import net.minecraft.class_9334;
@@ -75,6 +78,8 @@ import net.minecraft.class_9334;
    desc = "Автоматическая покупка, крафт, зачарование и продажа предметов через аукцион"
 )
 public class NeVasilekFarmilka extends BaseModule {
+   private static final java.util.function.BooleanSupplier HIDDEN_SETTING = () -> true;
+
    static {
       System.out.println("[Mytheria-PATCH] NeVasilekFarmilka (v6/AutoEnchanter) class loaded at startup");
       moscow.mytheria.logger.MytheriaLogger.log("class_loaded", "NeVasilekFarmilka-v6");
@@ -124,6 +129,7 @@ public class NeVasilekFarmilka extends BaseModule {
    private static final Pattern ENCHANT_LEVEL_PATTERN = Pattern.compile(
       "(?i)(\\b\\d+\\b|\\bI{1,3}\\b|\\bl{1,3}\\b|\\bIV\\b|\\bV\\b|\\bVI\\b|\\bVII\\b|\\bVIII\\b|\\bIX\\b|\\bX\\b|[\\u2160-\\u2169\\u2170-\\u2179])"
    );
+   private static final Pattern AUCTION_PAGE_PATTERN = Pattern.compile("\\[(\\d+)\\s*/\\s*(\\d+)\\]");
    private static final Pattern ENCHANT_LEVEL_TWO_PATTERN = Pattern.compile("(?i)(\\b2\\b|\\bII\\b|\\u2161|\\u2171|\\bll\\b)");
    private static final String SEARCH_MAGNET = "Магнит";
    private static final String SEARCH_MAGNET_EN = "Magnet";
@@ -215,47 +221,48 @@ public class NeVasilekFarmilka extends BaseModule {
    private final ModeSetting.Value secGeneral = new ModeSetting.Value(this.section, "Общие");
    private final ModeSetting.Value secPickaxe = new ModeSetting.Value(this.section, "Кирки");
    private final ModeSetting.Value secSword = new ModeSetting.Value(this.section, "Мечи");
+   private final ModeSetting.Value secAccounts = new ModeSetting.Value(this.section, "Аккаунты");
    // Show only when the matching section tab is active:
    private final java.util.function.BooleanSupplier inGeneral = () -> !this.section.is(this.secGeneral);
    private final java.util.function.BooleanSupplier inPickaxe = () -> !this.section.is(this.secPickaxe);
    private final java.util.function.BooleanSupplier inSword   = () -> !this.section.is(this.secSword);
    // ============== END PATCH ==============
-   private final ModeSetting mode = new ModeSetting(this, "Режим", () -> !this.section.is(this.secGeneral));
+   private final ModeSetting mode = new ModeSetting(this, "Режим", HIDDEN_SETTING);
    private final ModeSetting.Value modeEnchantTarget = new ModeSetting.Value(this.mode, "Чары (выбор)");
-   private final ModeSetting targetItemType = new ModeSetting(this, "Тип предмета", () -> !this.section.is(this.secGeneral));
+   private final ModeSetting targetItemType = new ModeSetting(this, "Тип предмета", HIDDEN_SETTING);
    private final ModeSetting.Value typePickaxes = new ModeSetting.Value(this.targetItemType, "Кирки");
    private final ModeSetting.Value typeSwords = new ModeSetting.Value(this.targetItemType, "Мечи");
-   private final ModeSetting.Value typeBooks = new ModeSetting.Value(this.targetItemType, "Книги");
-   private final ModeSetting.Value typeBoots = new ModeSetting.Value(this.targetItemType, "Ботинки");
+   private final ModeSetting.Value typeBooks = new ModeSetting.Value(this.targetItemType, "Книги", "", HIDDEN_SETTING);
+   private final ModeSetting.Value typeBoots = new ModeSetting.Value(this.targetItemType, "Ботинки", "", HIDDEN_SETTING);
    // Целевые чары: shown in BOTH Кирки and Мечи sections (hidden in Общие);
    // individual options are filtered by section below.
-   private final ModeSetting targetEnchant = new ModeSetting(this, "Целевые чары", () -> this.section.is(this.secGeneral));
-   private final ModeSetting.Value enchantMagnet = new ModeSetting.Value(this.targetEnchant, "Магнит", "", () -> !this.section.is(this.secPickaxe));
+   private final ModeSetting targetEnchant = new ModeSetting(this, "Целевые чары", HIDDEN_SETTING);
+   private final ModeSetting.Value enchantMagnet = new ModeSetting.Value(this.targetEnchant, "Магнит", "", HIDDEN_SETTING);
    private final ModeSetting.Value enchantBulldozer = new ModeSetting.Value(this.targetEnchant, "Бульдозер", "", () -> !this.section.is(this.secPickaxe));
-   private final ModeSetting.Value enchantWaterWalk = new ModeSetting.Value(this.targetEnchant, "Подводная ходьба", "", () -> !this.section.is(this.secPickaxe));
-   private final ModeSetting.Value enchantDetection = new ModeSetting.Value(this.targetEnchant, "Детекция", "", () -> !this.section.is(this.secSword));
+   private final ModeSetting.Value enchantWaterWalk = new ModeSetting.Value(this.targetEnchant, "Подводная ходьба", "", HIDDEN_SETTING);
+   private final ModeSetting.Value enchantDetection = new ModeSetting.Value(this.targetEnchant, "Детекция", "", HIDDEN_SETTING);
    private final ModeSetting.Value enchantPoison = new ModeSetting.Value(this.targetEnchant, "Яд", "", () -> !this.section.is(this.secSword));
-   private final ModeSetting.Value enchantVampirism = new ModeSetting.Value(this.targetEnchant, "Вампиризм", "", () -> !this.section.is(this.secSword));
-   private final ModeSetting.Value enchantOxidation = new ModeSetting.Value(this.targetEnchant, "Окисление", "", () -> !this.section.is(this.secSword));
-   private final SliderSetting actionDelay = new SliderSetting(this, "Задержка действий", () -> !this.section.is(this.secGeneral)).min(1.0F).max(2000.0F).step(1.0F).currentValue(250.0F).suffix("ms");
-   private final SliderSetting searchTimeoutMs = new SliderSetting(this, "Таймаут поиска", () -> !this.section.is(this.secGeneral))
+   private final ModeSetting.Value enchantVampirism = new ModeSetting.Value(this.targetEnchant, "Вампиризм", "", HIDDEN_SETTING);
+   private final ModeSetting.Value enchantOxidation = new ModeSetting.Value(this.targetEnchant, "Окисление", "", HIDDEN_SETTING);
+   private final SliderSetting actionDelay = new SliderSetting(this, "Задержка действий", HIDDEN_SETTING).min(1.0F).max(2000.0F).step(1.0F).currentValue(250.0F).suffix("ms");
+   private final SliderSetting searchTimeoutMs = new SliderSetting(this, "Таймаут поиска", HIDDEN_SETTING)
       .min(1000.0F)
       .max(20000.0F)
       .step(500.0F)
       .currentValue(6000.0F)
       .suffix("ms");
-   private final SliderSetting priceCacheSeconds = new SliderSetting(this, "Кэш цен", () -> !this.section.is(this.secGeneral)).min(0.0F).max(600.0F).step(5.0F).currentValue(30.0F).suffix("s");
-   private final BooleanSetting sellEnabled = new BooleanSetting(this, "Автопродажа", () -> !this.section.is(this.secGeneral)).enabled(true);
-   private final ModeSetting sellPriceMode = new ModeSetting(this, "Режим цены", () -> !this.section.is(this.secGeneral));
+   private final SliderSetting priceCacheSeconds = new SliderSetting(this, "Кэш цен", HIDDEN_SETTING).min(0.0F).max(600.0F).step(5.0F).currentValue(30.0F).suffix("s");
+   private final BooleanSetting sellEnabled = new BooleanSetting(this, "Автопродажа", HIDDEN_SETTING).enabled(true);
+   private final ModeSetting sellPriceMode = new ModeSetting(this, "Режим цены", HIDDEN_SETTING);
    private final ModeSetting.Value priceMarket = new ModeSetting.Value(this.sellPriceMode, "Маркет");
    private final ModeSetting.Value priceFixed = new ModeSetting.Value(this.sellPriceMode, "Фикс");
-   private final SliderSetting marketPercent = new SliderSetting(this, "Процент от рынка", () -> !this.section.is(this.secGeneral) || !this.sellPriceMode.is(this.priceMarket))
+   private final SliderSetting marketPercent = new SliderSetting(this, "Процент от рынка", HIDDEN_SETTING)
       .min(1.0F)
       .max(300.0F)
       .step(1.0F)
       .currentValue(100.0F)
       .suffix("%");
-   private final SliderSetting sellFixedPrice = new SliderSetting(this, "Фиксированная цена", () -> !this.section.is(this.secGeneral) || !this.sellPriceMode.is(this.priceFixed))
+   private final SliderSetting sellFixedPrice = new SliderSetting(this, "Цена продажи", HIDDEN_SETTING)
       .min(1.0F)
       .max(1000000.0F)
       .step(1.0F)
@@ -284,6 +291,14 @@ public class NeVasilekFarmilka extends BaseModule {
    private final ModeSetting.Value accountModeTwink;
    private final SliderSetting accountQueuePort;
    private final StringSetting accountQueueName;
+   private final StringSetting sellFixedPriceInput;
+   private final StringSetting maxXpPriceStackInput;
+   private final StringSetting maxSharpnessSwordPriceInput;
+   private final StringSetting maxEnchantSwordPriceInput;
+   private final BooleanSetting anarchyRelogEnabled;
+   private final StringSetting anarchyNumberInput;
+   private final BooleanSetting periodicAntiAfkEnabled;
+   private final BooleanSetting autoReconnectEnabled;
    private NeVasilekFarmilka.State state;
    private NeVasilekFarmilka.CraftStage craftStage;
    private final Timer actionTimer;
@@ -294,6 +309,8 @@ public class NeVasilekFarmilka extends BaseModule {
    private final Timer sellTimer;
    private final Timer afkTimer;
    private final Timer an18Timer;
+   private final Timer periodicAfkTimer;
+   private final Timer reconnectTimer;
    private final Timer relistFlowTimer;
    private final Timer auctionStuckTimer;
    private long buyScreenOpenedAtMs;
@@ -310,6 +327,7 @@ public class NeVasilekFarmilka extends BaseModule {
    private boolean lastBuySuccess;
    private boolean lastBuyFailed;
    private boolean searchFailed;
+   private long buyNavigationCooldownUntilMs;
    private long outputUnitPrice;
    private double outputPricePerQuality;
    private long craftUnitCost;
@@ -358,6 +376,9 @@ public class NeVasilekFarmilka extends BaseModule {
    private int autoEatPrevSlot;
    private int autoEatHotbarSlot;
    private long autoEatStartAtMs;
+   private boolean periodicAfkActive;
+   private long periodicAfkUntilMs;
+   private class_642 lastServerInfo;
    private NeVasilekFarmilka.QueueCoordinatorServer queueServer;
    private NeVasilekFarmilka.QueueCoordinatorClient queueClient;
    private boolean buyTurnActive;
@@ -372,34 +393,43 @@ public class NeVasilekFarmilka extends BaseModule {
    private final SliderSetting maxEnchantSwordPrice;
 
    public NeVasilekFarmilka() {
+      this.priceFixed.select();
       this.sellFixedPrice.max(1.0E7F);
-      this.minProfit = new SliderSetting(this, "Минимальная прибыль", () -> !this.section.is(this.secGeneral)).min(0.0F).max(1000000.0F).step(1.0F).currentValue(0.0F);
-      this.minXpPriceStack = new SliderSetting(this, "Мин. цена XP за стак", () -> !this.section.is(this.secGeneral)).min(1.0F).max(500000.0F).step(1.0F).currentValue(1.0F);
-      this.maxXpPriceStack = new SliderSetting(this, "Макс. цена XP за стак", () -> !this.section.is(this.secGeneral)).min(1.0F).max(7000000.0F).step(1.0F).currentValue(50000.0F);
+      this.sellFixedPriceInput = new StringSetting(this, "Цена продажи", () -> !this.section.is(this.secGeneral)).text("100000");
+      this.minProfit = new SliderSetting(this, "Минимальная прибыль", HIDDEN_SETTING).min(0.0F).max(1000000.0F).step(1.0F).currentValue(0.0F);
+      this.minXpPriceStack = new SliderSetting(this, "Мин. цена XP за стак", HIDDEN_SETTING).min(1.0F).max(500000.0F).step(1.0F).currentValue(1.0F);
+      this.maxXpPriceStack = new SliderSetting(this, "Макс. XP / стак", HIDDEN_SETTING).min(1.0F).max(7000000.0F).step(1.0F).currentValue(50000.0F);
       this.maxXpPriceStack.max(1.5E7F);
-      this.maxSharpnessSwordPrice = new SliderSetting(this, "Макс. цена меча Острота 7", () -> !this.section.is(this.secSword)).min(1.0F).max(1.0E8F).step(1.0F).currentValue(1000000.0F);
-      this.maxEnchantSwordPrice = new SliderSetting(this, "Макс. цена меча для чар", () -> !this.section.is(this.secSword)).min(1.0F).max(1.0E8F).step(1.0F).currentValue(100000.0F);
-      this.countFarm = new SliderSetting(this, "Количество для фарма", () -> !this.section.is(this.secGeneral)).min(1.0F).max(20.0F).step(1.0F).currentValue(1.0F);
-      this.targetXpLevel = new SliderSetting(this, "Целевой уровень XP", () -> !this.section.is(this.secGeneral)).min(1.0F).max(100.0F).step(1.0F).currentValue(30.0F);
-      this.lapisPerEnchant = new SliderSetting(this, "Лазурит на чарку", () -> !this.section.is(this.secGeneral)).min(1.0F).max(64.0F).step(1.0F).currentValue(3.0F);
-      this.tableRange = new SliderSetting(this, "Радиус стола чар", () -> !this.section.is(this.secGeneral)).min(1.0F).max(8.0F).step(1.0F).currentValue(4.0F);
-      this.grindstoneRange = new SliderSetting(this, "Радиус точила", () -> !this.section.is(this.secGeneral)).min(1.0F).max(8.0F).step(1.0F).currentValue(4.0F);
-      this.craftRange = new SliderSetting(this, "Радиус верстака", () -> !this.section.is(this.secGeneral)).min(1.0F).max(8.0F).step(1.0F).currentValue(4.0F);
-      this.anvilRange = new SliderSetting(this, "Радиус наковальни", () -> !this.section.is(this.secSword)).min(1.0F).max(8.0F).step(1.0F).currentValue(4.0F);
-      this.smithRange = new SliderSetting(this, "Радиус кузницы", () -> !this.section.is(this.secSword)).min(1.0F).max(8.0F).step(1.0F).currentValue(4.0F);
-      this.maxBuyAttempts = new SliderSetting(this, "Макс. попыток покупки", () -> !this.section.is(this.secGeneral)).min(1.0F).max(512.0F).step(1.0F).currentValue(96.0F);
-      this.autoEatInModule = new BooleanSetting(this, "Автоеда в модуле", () -> !this.section.is(this.secGeneral));
-      this.autoEatThreshold = new SliderSetting(this, "Порог голода", () -> !this.section.is(this.secGeneral)).min(1.0F).max(20.0F).step(1.0F).currentValue(18.0F);
-      this.xpSearchName = new StringSetting(this, "Название поиска XP", () -> !this.section.is(this.secGeneral)).text("Опыт с уровнем 15");
-      this.woodSearchName = new StringSetting(this, "Название поиска дерева", () -> !this.section.is(this.secGeneral)).text("Дерево");
-      this.preferStickBuy = new BooleanSetting(this, "Приоритет покупки палок", () -> !this.section.is(this.secGeneral));
-      this.anarchyNumber = new StringSetting(this, "Номер анархии", () -> !this.section.is(this.secGeneral)).text("222");
-      this.accountQueueEnabled = new BooleanSetting(this, "Очередь аккаунтов", () -> !this.section.is(this.secGeneral)).enabled(false);
-      this.accountMode = new ModeSetting(this, "Тип аккаунта", () -> !this.section.is(this.secGeneral));
+      this.maxXpPriceStackInput = new StringSetting(this, "Макс. XP / стак", () -> !this.section.is(this.secGeneral)).text("50000");
+      this.maxSharpnessSwordPrice = new SliderSetting(this, "Острота 7 до", HIDDEN_SETTING).min(1.0F).max(1.0E8F).step(1.0F).currentValue(1000000.0F);
+      this.maxEnchantSwordPrice = new SliderSetting(this, "Меч под яд до", HIDDEN_SETTING).min(1.0F).max(1.0E8F).step(1.0F).currentValue(100000.0F);
+      this.maxSharpnessSwordPriceInput = new StringSetting(this, "Острота 7 до", () -> !this.section.is(this.secSword)).text("1000000");
+      this.maxEnchantSwordPriceInput = new StringSetting(this, "Меч под яд до", () -> !this.section.is(this.secSword)).text("100000");
+      this.countFarm = new SliderSetting(this, "Цель фарма", () -> !this.section.is(this.secGeneral)).min(1.0F).max(20.0F).step(1.0F).currentValue(1.0F);
+      this.targetXpLevel = new SliderSetting(this, "Целевой уровень XP", HIDDEN_SETTING).min(1.0F).max(100.0F).step(1.0F).currentValue(30.0F);
+      this.lapisPerEnchant = new SliderSetting(this, "Лазурит на чарку", HIDDEN_SETTING).min(1.0F).max(64.0F).step(1.0F).currentValue(3.0F);
+      this.tableRange = new SliderSetting(this, "Радиус стола чар", HIDDEN_SETTING).min(1.0F).max(8.0F).step(1.0F).currentValue(4.0F);
+      this.grindstoneRange = new SliderSetting(this, "Радиус точила", HIDDEN_SETTING).min(1.0F).max(8.0F).step(1.0F).currentValue(4.0F);
+      this.craftRange = new SliderSetting(this, "Радиус верстака", HIDDEN_SETTING).min(1.0F).max(8.0F).step(1.0F).currentValue(4.0F);
+      this.anvilRange = new SliderSetting(this, "Радиус наковальни", HIDDEN_SETTING).min(1.0F).max(8.0F).step(1.0F).currentValue(4.0F);
+      this.smithRange = new SliderSetting(this, "Радиус кузницы", HIDDEN_SETTING).min(1.0F).max(8.0F).step(1.0F).currentValue(4.0F);
+      this.maxBuyAttempts = new SliderSetting(this, "Макс. попыток покупки", HIDDEN_SETTING).min(1.0F).max(512.0F).step(1.0F).currentValue(96.0F);
+      this.autoEatInModule = new BooleanSetting(this, "Автоеда в модуле", HIDDEN_SETTING);
+      this.autoEatThreshold = new SliderSetting(this, "Порог голода", HIDDEN_SETTING).min(1.0F).max(20.0F).step(1.0F).currentValue(18.0F);
+      this.xpSearchName = null;
+      this.woodSearchName = null;
+      this.preferStickBuy = new BooleanSetting(this, "Приоритет покупки палок", HIDDEN_SETTING);
+      this.anarchyNumber = null;
+      this.accountQueueEnabled = new BooleanSetting(this, "Очередь", () -> !this.section.is(this.secAccounts)).enabled(false);
+      this.accountMode = new ModeSetting(this, "Роль", () -> !this.section.is(this.secAccounts) || !this.accountQueueEnabled.isEnabled());
       this.accountModeMain = new ModeSetting.Value(this.accountMode, "Основной");
       this.accountModeTwink = new ModeSetting.Value(this.accountMode, "Твинк");
-      this.accountQueuePort = new SliderSetting(this, "Порт очереди", () -> !this.section.is(this.secGeneral)).min(1025.0F).max(65535.0F).step(1.0F).currentValue(29876.0F);
-      this.accountQueueName = new StringSetting(this, "Имя аккаунта", () -> !this.section.is(this.secGeneral)).text("");
+      this.accountQueuePort = new SliderSetting(this, "Порт очереди", HIDDEN_SETTING).min(1025.0F).max(65535.0F).step(1.0F).currentValue(29876.0F);
+      this.accountQueueName = null;
+      this.anarchyRelogEnabled = new BooleanSetting(this, "Перезаход /an", () -> !this.section.is(this.secAccounts)).enabled(false);
+      this.anarchyNumberInput = new StringSetting(this, "Анархия", () -> !this.section.is(this.secAccounts) || !this.anarchyRelogEnabled.isEnabled()).text("214");
+      this.periodicAntiAfkEnabled = new BooleanSetting(this, "Анти-AFK", () -> !this.section.is(this.secAccounts)).enabled(true);
+      this.autoReconnectEnabled = new BooleanSetting(this, "Авто reconnect", () -> !this.section.is(this.secAccounts)).enabled(false);
       this.setState(NeVasilekFarmilka.State.IDLE);
       this.setCraftStage(NeVasilekFarmilka.CraftStage.NONE);
       this.actionTimer = new Timer();
@@ -410,6 +440,8 @@ public class NeVasilekFarmilka extends BaseModule {
       this.sellTimer = new Timer();
       this.afkTimer = new Timer();
       this.an18Timer = new Timer();
+      this.periodicAfkTimer = new Timer();
+      this.reconnectTimer = new Timer();
       this.relistFlowTimer = new Timer();
       this.auctionStuckTimer = new Timer();
       this.buyScreenOpenedAtMs = 0L;
@@ -426,6 +458,7 @@ public class NeVasilekFarmilka extends BaseModule {
       this.lastBuySuccess = false;
       this.lastBuyFailed = false;
       this.searchFailed = false;
+      this.buyNavigationCooldownUntilMs = 0L;
       this.outputUnitPrice = -1L;
       this.outputPricePerQuality = -1.0;
       this.craftUnitCost = -1L;
@@ -474,6 +507,9 @@ public class NeVasilekFarmilka extends BaseModule {
       this.autoEatPrevSlot = -1;
       this.autoEatHotbarSlot = -1;
       this.autoEatStartAtMs = 0L;
+      this.periodicAfkActive = false;
+      this.periodicAfkUntilMs = 0L;
+      this.lastServerInfo = null;
       this.queueServer = null;
       this.queueClient = null;
       this.buyTurnActive = false;
@@ -530,6 +566,7 @@ public class NeVasilekFarmilka extends BaseModule {
          }
       };
       this.onTick = var1 -> {
+         this.handleAutoReconnectTick();
          if (mc.field_1724 != null) {
             if (mc.field_1724.method_29504()) {
                this.disable();
@@ -553,6 +590,7 @@ public class NeVasilekFarmilka extends BaseModule {
          if (mc.field_1724 != null && mc.field_1687 != null) {
             this.handleAccountQueueTick();
             this.handleAn18();
+            this.handlePeriodicAnarchyRelog();
             if (!this.isAnarchyBossBarActive) {
                if (this.afkRetryActive) {
                   if (this.buyTurnActive || this.buyTurnRequested || this.buyTurnGranted) {
@@ -560,6 +598,10 @@ public class NeVasilekFarmilka extends BaseModule {
                   }
 
                   this.handleAfkRetry();
+               } else if (this.handlePeriodicAntiAfk()) {
+                  if (this.buyTurnActive || this.buyTurnRequested || this.buyTurnGranted) {
+                     this.releaseBuyTurn();
+                  }
                } else if (this.handleAutoEat()) {
                   if (this.buyTurnActive || this.buyTurnRequested || this.buyTurnGranted) {
                      this.releaseBuyTurn();
@@ -732,6 +774,8 @@ public class NeVasilekFarmilka extends BaseModule {
       this.sellTimer.reset();
       this.afkTimer.reset();
       this.an18Timer.reset();
+      this.periodicAfkTimer.reset();
+      this.reconnectTimer.reset();
       this.relistFlowTimer.reset();
       this.auctionStuckTimer.reset();
       this.priceRequests.clear();
@@ -790,6 +834,8 @@ public class NeVasilekFarmilka extends BaseModule {
       this.autoEatPrevSlot = -1;
       this.autoEatHotbarSlot = -1;
       this.autoEatStartAtMs = 0L;
+      this.periodicAfkActive = false;
+      this.periodicAfkUntilMs = 0L;
       this.buyTurnActive = false;
       this.buyTurnRequested = false;
       this.buyTurnGranted = false;
@@ -809,11 +855,11 @@ public class NeVasilekFarmilka extends BaseModule {
    }
 
    private int getAccountQueuePort() {
-      return Math.max(1025, Math.min(65535, Math.round(this.accountQueuePort.getCurrentValue())));
+      return 29876;
    }
 
    private String resolveQueueAccountId() {
-      String var1 = this.accountQueueName.getText();
+      String var1 = this.accountQueueName == null ? null : this.accountQueueName.getText();
       if (var1 != null && !var1.isBlank()) {
          return var1.trim();
       } else {
@@ -976,12 +1022,12 @@ public class NeVasilekFarmilka extends BaseModule {
                   return;
                }
 
-               if (!this.relistPending && this.sellEnabled.isEnabled()) {
+               if (!this.relistPending) {
                   this.setState(NeVasilekFarmilka.State.SELL_SEND);
                   this.sellTimer.reset();
                   return;
                }
-            } else if (!this.isSwordMode() && !this.relistPending && this.sellEnabled.isEnabled() && var2 != -1) {
+            } else if (!this.isSwordMode() && !this.relistPending && var2 != -1) {
                this.setState(NeVasilekFarmilka.State.SELL_SEND);
                this.sellTimer.reset();
                return;
@@ -999,7 +1045,7 @@ public class NeVasilekFarmilka extends BaseModule {
                   this.actionTimer.reset();
                }
             } else {
-               boolean var5 = this.relistPending || !this.sellEnabled.isEnabled();
+               boolean var5 = this.relistPending || false;
                int var4 = this.findPickaxeSlotWithAnyEnchant(var5);
                if (var4 != -1) {
                   this.setState(NeVasilekFarmilka.State.GRIND_OPEN);
@@ -1112,7 +1158,7 @@ public class NeVasilekFarmilka extends BaseModule {
    private void handleDecide() {
       this.craftUnitCost = this.computeCraftUnitCost();
       long var1 = this.getPlannedSellPrice();
-      if (var1 > 0L && this.craftUnitCost > 0L && var1 - this.craftUnitCost < Math.round(this.minProfit.getCurrentValue())) {
+      if (false && var1 > 0L && this.craftUnitCost > 0L && var1 - this.craftUnitCost < Math.round(this.minProfit.getCurrentValue())) {
          MessageUtility.info(class_2561.method_43470("[NeVasilekFarmilka] Not profitable"));
          this.setState(NeVasilekFarmilka.State.IDLE);
          this.actionTimer.reset();
@@ -1157,6 +1203,7 @@ public class NeVasilekFarmilka extends BaseModule {
             this.lastBuySuccess = false;
             this.lastBuyFailed = false;
             this.searchFailed = false;
+            this.buyNavigationCooldownUntilMs = 0L;
             String searchQuery = this.sanitizeSearchName(var1.query, var1.keepDigits);
             moscow.mytheria.logger.MytheriaLogger.event("buy_search")
                .with("query", searchQuery)
@@ -1316,7 +1363,7 @@ public class NeVasilekFarmilka extends BaseModule {
    }
 
    private boolean handleAutoEat() {
-      if (this.autoEatInModule.isEnabled() && mc.field_1724 != null && mc.field_1761 != null) {
+      if (this.isAutoEatModuleEnabled() && mc.field_1724 != null && mc.field_1761 != null) {
          int var1 = mc.field_1724.method_7344().method_7586();
          int var2 = Math.max(1, Math.round(this.autoEatThreshold.getCurrentValue()));
          boolean var3 = var1 < var2;
@@ -1399,6 +1446,8 @@ public class NeVasilekFarmilka extends BaseModule {
       this.autoEatPrevSlot = -1;
       this.autoEatHotbarSlot = -1;
       this.autoEatStartAtMs = 0L;
+      this.periodicAfkActive = false;
+      this.periodicAfkUntilMs = 0L;
    }
 
    private int findFoodInventorySlot() {
@@ -1421,7 +1470,7 @@ public class NeVasilekFarmilka extends BaseModule {
          this.setState(NeVasilekFarmilka.State.IDLE);
       } else {
          if (mc.field_1755 == null && this.actionTimer.finished(this.delayMs())) {
-            class_2338 var1 = this.findNearestBlock(class_2246.field_9980, Math.round(this.craftRange.getCurrentValue()));
+            class_2338 var1 = this.findNearestBlock(class_2246.field_9980, 4);
             if (var1 == null) {
                MessageUtility.info(class_2561.method_43470("[NeVasilekFarmilka] Crafting table not found."));
                this.setState(NeVasilekFarmilka.State.IDLE);
@@ -1517,7 +1566,7 @@ public class NeVasilekFarmilka extends BaseModule {
 
    private void handleEnchantOpen() {
       if (mc.field_1755 == null && this.actionTimer.finished(this.delayMs())) {
-         class_2338 var1 = this.findNearestBlock(class_2246.field_10485, Math.round(this.tableRange.getCurrentValue()));
+         class_2338 var1 = this.findNearestBlock(class_2246.field_10485, 4);
          if (var1 == null) {
             MessageUtility.info(class_2561.method_43470("[NeVasilekFarmilka] Enchanting table not found."));
             this.setState(NeVasilekFarmilka.State.IDLE);
@@ -1566,7 +1615,7 @@ public class NeVasilekFarmilka extends BaseModule {
                int var6 = this.findPlayerSlotId(var3, var10);
                int var7 = this.findPlayerSlotId(var3, var5);
                if (var6 != -1 && var7 != -1) {
-                  int var8 = Math.max(1, Math.round(this.lapisPerEnchant.getCurrentValue()));
+                  int var8 = 3;
                   class_1799 var9 = var3.method_7611(1).method_7677();
                   if (!var9.method_7960() && var9.method_7909() != class_1802.field_8759) {
                      this.closeHandledScreenSafely();
@@ -1628,7 +1677,7 @@ public class NeVasilekFarmilka extends BaseModule {
          } else if (this.enchantTimer.finished(this.delayMs())) {
             mc.field_1761.method_2906(var3.field_7763, 0, 0, class_1713.field_7794, mc.field_1724);
             if (this.findUnenchantedPickaxeSlot() != -1
-               && this.countItem(class_1802.field_8759) >= Math.max(1, Math.round(this.lapisPerEnchant.getCurrentValue()))) {
+               && this.countItem(class_1802.field_8759) >= 3) {
                this.setState(NeVasilekFarmilka.State.ENCHANT_PLACE);
                this.enchantTimer.reset();
             } else if (this.closeHandledScreenSafely()) {
@@ -1648,7 +1697,7 @@ public class NeVasilekFarmilka extends BaseModule {
          .with("target_item", var2 == -1 ? "none"
                : describeStack(mc.field_1724.method_31548().method_5438(var2)))
          .with("sword_mode", this.isSwordMode())
-         .with("sell_enabled", this.sellEnabled.isEnabled())
+         .with("sell_enabled", true)
          .with("relist_pending", this.relistPending)
          .emit();
       if (this.isSwordMode() && var2 != -1 && this.isFinalSword(mc.field_1724.method_31548().method_5438(var2))) {
@@ -1658,12 +1707,12 @@ public class NeVasilekFarmilka extends BaseModule {
             return;
          }
 
-         if (!this.relistPending && this.sellEnabled.isEnabled()) {
+         if (!this.relistPending) {
             this.setState(NeVasilekFarmilka.State.SELL_SEND);
             this.sellTimer.reset();
             return;
          }
-      } else if (!this.isSwordMode() && !this.relistPending && this.sellEnabled.isEnabled() && var2 != -1) {
+      } else if (!this.isSwordMode() && !this.relistPending && var2 != -1) {
          this.setState(NeVasilekFarmilka.State.SELL_SEND);
          this.sellTimer.reset();
          return;
@@ -1681,7 +1730,7 @@ public class NeVasilekFarmilka extends BaseModule {
             this.actionTimer.reset();
          }
       } else {
-         boolean var5 = this.relistPending || !this.sellEnabled.isEnabled();
+         boolean var5 = this.relistPending || false;
          int var4 = this.findPickaxeSlotWithAnyEnchant(var5);
          if (var4 != -1) {
             if (!this.isSwordMode()) {
@@ -1714,7 +1763,7 @@ public class NeVasilekFarmilka extends BaseModule {
       }
 
       if (mc.field_1755 == null && this.actionTimer.finished(this.delayMs())) {
-         class_2338 var3 = this.findNearestBlock(class_2246.field_16337, Math.round(this.grindstoneRange.getCurrentValue()));
+         class_2338 var3 = this.findNearestBlock(class_2246.field_16337, 4);
          if (var3 == null) {
             MessageUtility.info(class_2561.method_43470("[NeVasilekFarmilka] Grindstone not found."));
             this.setState(NeVasilekFarmilka.State.IDLE);
@@ -1765,7 +1814,7 @@ public class NeVasilekFarmilka extends BaseModule {
             }
          }
 
-         int var8 = this.findPickaxeSlotWithAnyEnchant(this.relistPending || !this.sellEnabled.isEnabled());
+         int var8 = this.findPickaxeSlotWithAnyEnchant(this.relistPending || false);
          if (var8 == -1) {
             this.closeHandledScreenSafely();
             this.setState(NeVasilekFarmilka.State.IDLE);
@@ -1798,7 +1847,7 @@ public class NeVasilekFarmilka extends BaseModule {
                this.clearCursorToInventory(var3);
             }
 
-            int var6 = this.findPickaxeSlotWithAnyEnchant(this.relistPending || !this.sellEnabled.isEnabled());
+            int var6 = this.findPickaxeSlotWithAnyEnchant(this.relistPending || false);
             int var5 = this.findPickaxeSlotWithBad();
             if (var6 != -1 || var5 != -1) {
                this.setState(NeVasilekFarmilka.State.GRIND_PLACE);
@@ -1812,7 +1861,7 @@ public class NeVasilekFarmilka extends BaseModule {
 
    private void handleAnvilOpen() {
       if (mc.field_1755 == null && this.actionTimer.finished(this.delayMs())) {
-         class_2338 var1 = this.findNearestAnvilBlock(Math.round(this.anvilRange.getCurrentValue()));
+         class_2338 var1 = this.findNearestAnvilBlock(4);
          if (var1 == null) {
             MessageUtility.info(class_2561.method_43470("[NeVasilekFarmilka] Anvil not found."));
             this.setState(NeVasilekFarmilka.State.IDLE);
@@ -1910,7 +1959,7 @@ public class NeVasilekFarmilka extends BaseModule {
 
    private void handleSmithOpen() {
       if (mc.field_1755 == null && this.actionTimer.finished(this.delayMs())) {
-         class_2338 var1 = this.findNearestBlock(class_2246.field_16329, Math.round(this.smithRange.getCurrentValue()));
+         class_2338 var1 = this.findNearestBlock(class_2246.field_16329, 4);
          if (var1 == null) {
             MessageUtility.info(class_2561.method_43470("[NeVasilekFarmilka] Smithing table not found."));
             this.setState(NeVasilekFarmilka.State.IDLE);
@@ -2005,7 +2054,7 @@ public class NeVasilekFarmilka extends BaseModule {
    }
 
    private void handleSellSend() {
-      if (this.sellEnabled.isEnabled() && !this.relistPending) {
+      if (true && !this.relistPending) {
          if (this.sellTimer.finished(200L)) {
             int var1 = this.findPickaxeSlotWithTarget();
             if (var1 == -1) {
@@ -2200,7 +2249,7 @@ public class NeVasilekFarmilka extends BaseModule {
    }
 
    private boolean shouldPriceCheck() {
-      return this.sellPriceMode.is(this.priceMarket);
+      return false;
    }
 
    private void buildPriceRequests() {
@@ -2246,12 +2295,7 @@ public class NeVasilekFarmilka extends BaseModule {
    }
 
    private boolean isProfitable() {
-      if (this.minProfit.getCurrentValue() <= 0.0F) {
-         return true;
-      } else {
-         long var1 = this.getPlannedSellPrice();
-         return var1 <= 0L || this.craftUnitCost <= 0L || var1 - this.craftUnitCost >= Math.round(this.minProfit.getCurrentValue());
-      }
+      return true;
    }
 
    private long getPlannedSellPrice() {
@@ -2259,17 +2303,7 @@ public class NeVasilekFarmilka extends BaseModule {
    }
 
    private long getPlannedSellPrice(class_1799 var1) {
-      if (this.sellPriceMode.is(this.priceFixed)) {
-         return Math.max(1L, Math.min(10000000L, (long)Math.round(this.sellFixedPrice.getCurrentValue())));
-      } else {
-         double var4 = Math.max(1.0, (double)Math.round(this.marketPercent.getCurrentValue())) / 100.0;
-         double var2;
-         if (var1 != null && this.outputPricePerQuality > 0.0 && (var2 = this.computePickaxeQualityScore(var1)) > 0.0) {
-            return Math.max(1L, Math.round(this.outputPricePerQuality * var2 * var4));
-         } else {
-            return this.outputUnitPrice <= 0L ? -1L : Math.max(1L, Math.round(this.outputUnitPrice * var4));
-         }
-      }
+      return this.getLongInput(this.sellFixedPriceInput, 100000L, 1L, 10000000L);
    }
 
    private long computeCraftUnitCost() {
@@ -2302,7 +2336,7 @@ public class NeVasilekFarmilka extends BaseModule {
       }
 
       if (var1 > 0L) {
-         var5 += var1 * Math.max(1L, (long)Math.round(this.lapisPerEnchant.getCurrentValue()));
+         var5 += var1 * 3L;
       }
 
       if (var3 > 0L && this.needsXp()) {
@@ -2331,7 +2365,7 @@ public class NeVasilekFarmilka extends BaseModule {
          this.buyAttempts = 0;
          this.buyBlocked = false;
          int var1 = this.countItem(class_1802.field_8759);
-         int var2 = Math.max(1, Math.round(this.lapisPerEnchant.getCurrentValue()));
+         int var2 = 3;
          if (var1 < var2 && var1 < 128) {
             this.buyRequests
                .add(new NeVasilekFarmilka.BuyRequest("lapis", this.buildSearchName(new class_1799(class_1802.field_8759)), class_1802.field_8759, var2));
@@ -2401,7 +2435,7 @@ public class NeVasilekFarmilka extends BaseModule {
          return true;
       } else {
          int var2 = this.countItem(class_1802.field_8759);
-         if (var2 < Math.max(1, Math.round(this.lapisPerEnchant.getCurrentValue())) && var2 < 128) {
+         if (var2 < 3 && var2 < 128) {
             return true;
          } else {
             int var3 = Math.round(this.countFarm.getCurrentValue());
@@ -2457,39 +2491,35 @@ public class NeVasilekFarmilka extends BaseModule {
    }
 
    private class_1792 getTargetBaseItem() {
-      if (this.targetItemType.is(this.typePickaxes)) {
-         return class_1802.field_8377;
-      } else if (this.targetItemType.is(this.typeSwords)) {
-         return class_1802.field_8802;
-      } else if (this.targetItemType.is(this.typeBooks)) {
-         return class_1802.field_8529;
-      } else {
-         return this.targetItemType.is(this.typeBoots) ? class_1802.field_8285 : class_1802.field_8377;
-      }
+      return this.isSwordMode() ? class_1802.field_8802 : class_1802.field_8377;
    }
 
    private class_1792 getTargetOutputItem() {
-      if (this.targetItemType.is(this.typeBooks)) {
-         return class_1802.field_8598;
-      } else {
-         return this.isSwordMode() ? class_1802.field_22022 : this.getTargetBaseItem();
-      }
+      return this.isSwordMode() ? class_1802.field_22022 : this.getTargetBaseItem();
    }
 
    private boolean isPickaxeMode() {
-      return this.targetItemType.is(this.typePickaxes);
+      return !this.section.is(this.secSword);
+   }
+
+   private boolean isAutoEatModuleEnabled() {
+      return false;
    }
 
    private boolean isBookMode() {
-      return this.targetItemType.is(this.typeBooks);
+      return false;
    }
 
    private boolean isSwordMode() {
-      return this.targetItemType.is(this.typeSwords);
+      return this.section.is(this.secSword);
    }
 
    private String[] getTargetEnchantNeedles() {
-      if (this.targetEnchant.is(this.enchantMagnet)) {
+      if (this.isPickaxeMode()) {
+         return new String[]{"Бульдозер", "Bulldozer"};
+      } else if (this.isSwordMode()) {
+         return new String[]{"Яд", "Poison"};
+      } else if (this.targetEnchant.is(this.enchantMagnet)) {
          return new String[]{"Магнит", "Magnet"};
       } else if (this.targetEnchant.is(this.enchantBulldozer)) {
          return new String[]{"Бульдозер", "Bulldozer"};
@@ -2507,18 +2537,18 @@ public class NeVasilekFarmilka extends BaseModule {
    }
 
    private boolean targetRequiresLevelTwo() {
-      return this.targetEnchant.is(this.enchantBulldozer);
+      return this.isPickaxeMode() || this.targetEnchant.is(this.enchantBulldozer);
    }
 
    private boolean needsXp() {
-      return this.getCurrentLevelExact() < this.targetXpLevel.getCurrentValue();
+      return this.getCurrentLevelExact() < 30.0F;
    }
 
    private int requiredXpBottles() {
       if (!this.needsXp()) {
          return 0;
       } else {
-         float var1 = Math.max(0.0F, this.targetXpLevel.getCurrentValue() - this.getCurrentLevelExact());
+         float var1 = Math.max(0.0F, 30.0F - this.getCurrentLevelExact());
          int var2 = (int)Math.ceil(var1 / 15.0);
          return var2 <= 0 ? 0 : Math.max(3, var2);
       }
@@ -2862,7 +2892,7 @@ public class NeVasilekFarmilka extends BaseModule {
    }
 
    private int findPickaxeSlotWithAnyEnchant() {
-      return this.findPickaxeSlotWithAnyEnchant(!this.sellEnabled.isEnabled());
+      return this.findPickaxeSlotWithAnyEnchant(false);
    }
 
    private int findPickaxeSlotWithAnyEnchant(boolean var1) {
@@ -3231,7 +3261,7 @@ public class NeVasilekFarmilka extends BaseModule {
                && (var9 = Math.max(1L, var11 / Math.max(1, var13.method_7947()))) < var6) {
                if (var13.method_7909() == class_1802.field_8287) {
                   long var14 = var9 * 64L;
-                  if (var14 < Math.round(this.minXpPriceStack.getCurrentValue()) || var14 > Math.round(this.maxXpPriceStack.getCurrentValue())) {
+                  if (var14 < 1L || var14 > this.getLongInput(this.maxXpPriceStackInput, 50000L, 1L, 15000000L)) {
                      continue;
                   }
                }
@@ -3295,10 +3325,11 @@ public class NeVasilekFarmilka extends BaseModule {
 
    private int findCheapestSlot(class_1703 var1, String var2, boolean var3, int var4) {
       String var5 = this.normalizeLettersOnly(var2);
+      int var16 = this.getAuctionListingSlotLimit(var4);
       long var6 = Long.MAX_VALUE;
       int var8 = -1;
 
-      for (int var9 = 0; var9 < var4; var9++) {
+      for (int var9 = 0; var9 < var16; var9++) {
          class_1799 var14 = ((class_1735)var1.field_7761.get(var9)).method_7677();
          long var10;
          long var12;
@@ -3316,7 +3347,7 @@ public class NeVasilekFarmilka extends BaseModule {
             && (var10 = Math.max(1L, var12 / Math.max(1, var14.method_7947()))) < var6) {
             if (var14.method_7909() == class_1802.field_8287) {
                long var15 = var10 * 64L;
-               if (var15 < Math.round(this.minXpPriceStack.getCurrentValue()) || var15 > Math.round(this.maxXpPriceStack.getCurrentValue())) {
+               if (var15 < 1L || var15 > this.getLongInput(this.maxXpPriceStackInput, 50000L, 1L, 15000000L)) {
                   continue;
                }
             }
@@ -3360,6 +3391,10 @@ public class NeVasilekFarmilka extends BaseModule {
       } else {
          return var1.method_7909() == class_1802.field_8477;
       }
+   }
+
+   private int getAuctionListingSlotLimit(int var1) {
+      return Math.max(0, Math.min(var1, 45));
    }
 
    private boolean tryConfirmPurchase() {
@@ -3470,24 +3505,47 @@ public class NeVasilekFarmilka extends BaseModule {
    }
 
    private String getXpSearchQuery() {
-      String var1 = this.xpSearchName.getText();
-      return var1 != null
-            && !var1.isBlank()
-            && this.normalizeLettersOnly(var1).contains(this.normalizeLettersOnly("опыт"))
-            && this.normalizeLettersOnly(var1).contains(this.normalizeLettersOnly("уровн"))
-            && var1.matches(".*\\d+.*")
-         ? var1
-         : "Опыт с уровнем 15";
+      return "Опыт с уровнем 15";
    }
 
    private String getWoodSearchQuery() {
-      String var1 = this.woodSearchName.getText();
-      if (var1 != null && !var1.isBlank()) {
-         String var2 = this.normalizeLettersOnly(var1);
-         return !var2.contains(this.normalizeLettersOnly("дерев")) && !var2.contains("wood") ? "Дерево" : var1;
-      } else {
-         return "Дерево";
+      return "Дерево";
+   }
+
+   private long getLongInput(StringSetting var1, long var2, long var4, long var6) {
+      if (var1 == null) {
+         return Math.max(var4, Math.min(var6, var2));
       }
+
+      String var8 = var1.getText();
+      if (var8 == null) {
+         return Math.max(var4, Math.min(var6, var2));
+      }
+
+      String var9 = var8.replaceAll("[^0-9]", "");
+      if (var9.isBlank()) {
+         return Math.max(var4, Math.min(var6, var2));
+      }
+
+      try {
+         return Math.max(var4, Math.min(var6, Long.parseLong(var9)));
+      } catch (NumberFormatException var10) {
+         return Math.max(var4, Math.min(var6, var2));
+      }
+   }
+
+   private String getAnarchyNumber() {
+      if (this.anarchyNumberInput == null) {
+         return "214";
+      }
+
+      String var1 = this.anarchyNumberInput.getText();
+      if (var1 == null) {
+         return "214";
+      }
+
+      String var2 = var1.replaceAll("[^0-9]", "");
+      return var2.isBlank() ? "214" : var2;
    }
 
    private int getAccessibleInventorySize() {
@@ -4386,8 +4444,8 @@ public class NeVasilekFarmilka extends BaseModule {
 
       if (var1) {
          this.isAnarchyBossBarActive = true;
-         if (this.an18Timer.finished(10000L)) {
-            String var9 = this.anarchyNumber.getText();
+         if (this.an18Timer.finished(15000L)) {
+            String var9 = this.getAnarchyNumber();
             if (var9 != null && !var9.isEmpty()) {
                this.sendChat("/an" + var9);
             }
@@ -4396,6 +4454,77 @@ public class NeVasilekFarmilka extends BaseModule {
          }
       } else {
          this.isAnarchyBossBarActive = false;
+      }
+   }
+
+   private void handlePeriodicAnarchyRelog() {
+      if (this.anarchyRelogEnabled != null && this.anarchyRelogEnabled.isEnabled() && this.an18Timer.finished(15000L)) {
+         String var1 = this.getAnarchyNumber();
+         if (var1 != null && !var1.isEmpty()) {
+            this.sendChat("/an" + var1);
+         }
+
+         this.an18Timer.reset();
+      }
+   }
+
+   private boolean handlePeriodicAntiAfk() {
+      if (this.periodicAntiAfkEnabled == null || !this.periodicAntiAfkEnabled.isEnabled() || mc.field_1755 != null) {
+         if (this.periodicAfkActive) {
+            this.stopMovementKeys();
+            this.periodicAfkActive = false;
+            this.periodicAfkUntilMs = 0L;
+         }
+
+         return false;
+      }
+
+      long var1 = System.currentTimeMillis();
+      if (!this.periodicAfkActive && this.periodicAfkTimer.finished(60000L)) {
+         this.periodicAfkActive = true;
+         this.periodicAfkUntilMs = var1 + 5000L;
+         this.afkMoveStep = 0;
+         this.afkMoveStepAtMs = 0L;
+         this.afkMoveDir = -1;
+         this.afkMouseStep = 0;
+         this.afkBaseYaw = mc.field_1724.method_36454();
+         this.afkBasePitch = mc.field_1724.method_36455();
+      }
+
+      if (!this.periodicAfkActive) {
+         return false;
+      }
+
+      if (var1 < this.periodicAfkUntilMs) {
+         this.handleAfkWalk();
+         return true;
+      }
+
+      this.stopMovementKeys();
+      this.periodicAfkActive = false;
+      this.periodicAfkUntilMs = 0L;
+      this.periodicAfkTimer.reset();
+      return false;
+   }
+
+   private void handleAutoReconnectTick() {
+      if (this.autoReconnectEnabled == null || !this.autoReconnectEnabled.isEnabled()) {
+         return;
+      }
+
+      if (mc.field_1724 != null && mc.field_1687 != null) {
+         class_642 var1 = mc.method_1558();
+         if (var1 != null) {
+            this.lastServerInfo = var1;
+         }
+
+         this.reconnectTimer.reset();
+      } else if (this.reconnectTimer.finished(300000L)) {
+         if (this.lastServerInfo != null && this.lastServerInfo.field_3761 != null && !this.lastServerInfo.field_3761.isBlank() && mc.field_1755 != null) {
+            aeu.connect(mc.field_1755, mc, class_639.method_2950(this.lastServerInfo.field_3761), this.lastServerInfo, false, null);
+         }
+
+         this.reconnectTimer.reset();
       }
    }
 
@@ -4530,7 +4659,7 @@ public class NeVasilekFarmilka extends BaseModule {
    }
 
    private long delayMs() {
-      return Math.max(1L, (long)Math.round(this.actionDelay.getCurrentValue()));
+      return 250L;
    }
 
    private long buyDelayMs() {
@@ -4538,11 +4667,11 @@ public class NeVasilekFarmilka extends BaseModule {
    }
 
    private long timeoutMs() {
-      return Math.max(1000L, (long)Math.round(this.searchTimeoutMs.getCurrentValue()));
+      return 6000L;
    }
 
    private long cacheMs() {
-      return Math.max(0L, (long)Math.round(this.priceCacheSeconds.getCurrentValue())) * 1000L;
+      return 30000L;
    }
 
    private boolean isBuySatisfied(NeVasilekFarmilka.BuyRequest var1) {
@@ -4625,7 +4754,7 @@ public class NeVasilekFarmilka extends BaseModule {
       this.buyAttempts = 0;
       this.buyBlocked = false;
       int var1 = this.countItem(class_1802.field_8759);
-      int var2 = Math.max(1, Math.round(this.lapisPerEnchant.getCurrentValue()));
+      int var2 = 3;
       if (var1 < var2 && var1 < 128) {
          this.buyRequests
             .add(new NeVasilekFarmilka.BuyRequest("lapis", this.buildSearchName(new class_1799(class_1802.field_8759)), class_1802.field_8759, var2));
@@ -4723,7 +4852,10 @@ public class NeVasilekFarmilka extends BaseModule {
       long var2 = this.extractPrice(var1);
       if (var2 > 0L) {
          long var4 = Math.max(1L, var2 / Math.max(1, var1.method_7947()));
-         if (Math.round((this.countSharpnessSwords() > 0 ? this.maxEnchantSwordPrice : this.maxSharpnessSwordPrice).getCurrentValue()) >= var4) {
+         long var6 = this.countSharpnessSwords() > 0
+            ? this.getLongInput(this.maxEnchantSwordPriceInput, 100000L, 1L, 100000000L)
+            : this.getLongInput(this.maxSharpnessSwordPriceInput, 1000000L, 1L, 100000000L);
+         if (var6 >= var4) {
             return true;
          }
       }
@@ -4758,7 +4890,7 @@ public class NeVasilekFarmilka extends BaseModule {
                         this.actionTimer.reset();
                      }
                   } else {
-                     if (!this.buyBlocked && this.buyAttempts < Math.round(this.maxBuyAttempts.getCurrentValue()) && !this.isInventoryFull()) {
+                     if (!this.buyBlocked && this.buyAttempts < 96 && !this.isInventoryFull()) {
                         int var5 = this.getContainerSlotCount(var3);
                         int var6 = this.findCheapestSlot(var3, var4.query, var4.outputFilterTarget, var5);
                         if (var6 != -1) {
@@ -4793,18 +4925,51 @@ public class NeVasilekFarmilka extends BaseModule {
    }
 
    private boolean tryClickAuctionNextOrRefresh(class_1703 var1, int var2) {
-      int var3 = this.findAuctionButtonSlot(var1, var2, "следующаястраница", "nextpage");
-      if (var3 == -1) {
-         var3 = this.findAuctionButtonSlot(var1, var2, "обновить", "refresh");
-         if (var3 == -1) {
-            return false;
-         }
+      long var5 = System.currentTimeMillis();
+      if (var5 < this.buyNavigationCooldownUntilMs) {
+         return true;
       }
 
-      this.clickContainerSlot(var1, var3);
+      int[] var3 = this.getAuctionPageInfo();
+      boolean var4 = var3 == null || var3[0] < var3[1];
+      int var7 = var4 ? this.findAuctionButtonSlot(var1, var2, "следующаястраница", "nextpage") : -1;
+      if (var7 == -1 && !var4) {
+         var7 = this.findAuctionButtonSlot(var1, var2, "обновить", "refresh");
+      }
+
+      if (var7 == -1 && var3 == null) {
+         var7 = this.findAuctionButtonSlot(var1, var2, "обновить", "refresh");
+      }
+
+      if (var7 == -1) {
+         return false;
+      }
+
+      this.clickContainerSlot(var1, var7);
+      this.buyNavigationCooldownUntilMs = var5 + 1500L;
       this.buyTimer.reset();
       this.actionTimer.reset();
       return true;
+   }
+
+   private int[] getAuctionPageInfo() {
+      if (!(mc.field_1755 instanceof class_465 var1)) {
+         return null;
+      }
+
+      String var2 = stripFormatting(var1.method_25440().getString());
+      Matcher var3 = AUCTION_PAGE_PATTERN.matcher(var2);
+      if (!var3.find()) {
+         return null;
+      }
+
+      try {
+         int var4 = Integer.parseInt(var3.group(1));
+         int var5 = Integer.parseInt(var3.group(2));
+         return var4 > 0 && var5 > 0 ? new int[]{var4, var5} : null;
+      } catch (NumberFormatException var6) {
+         return null;
+      }
    }
 
    private int findAuctionButtonSlot(class_1703 var1, int var2, String var3, String var4) {
