@@ -1,0 +1,50 @@
+# Gradle
+.gradle/
+build/
+out/
+!gradle/wrapper/gradle-wrapper.jar
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Eclipse
+.classpath
+.project
+.settings/
+bin/
+
+# VS Code
+.vscode/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db
+
+# Java
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+
+# Fabric / Minecraft mod
+run/
+logs/
+crash-reports/
+.fabric/
+
+# Decompiled sources (usually generated)
+decompiled/
+
+# Local properties (may contain secrets/paths)
+local.properties
+gradle-local.properties
+
+# Compiled outputs
+libs/

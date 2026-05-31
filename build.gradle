@@ -1,0 +1,85 @@
+plugins {
+    id 'fabric-loom' version '1.13.6'
+    id 'java'
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+    archivesName = project.archives_base_name
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    // Intermediary mappings: decompiled code uses class_XXXX names directly.
+    mappings "net.fabricmc:intermediary:${project.minecraft_version}:v2"
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+    compileOnly("org.projectlombok:lombok:${project.lombok_version}")
+    annotationProcessor("org.projectlombok:lombok:${project.lombok_version}")
+
+    // The compiled v6 mytheria JAR + its bundled libs (compileOnly; our output
+    // overlays the extracted folder).
+    compileOnly fileTree(dir: 'libs', include: ['*.jar'])
+}
+
+def targetJavaVersion = 21
+tasks.withType(JavaCompile).configureEach {
+    it.options.encoding = 'UTF-8'
+    if (targetJavaVersion >= 10 || JavaVersion.current().isJava10Compatible()) {
+        it.options.release.set(targetJavaVersion)
+    }
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(targetJavaVersion)
+        vendor = JvmVendorSpec.ADOPTIUM
+    }
+}
+
+// --------------------------------------------------------------------------
+// Overlay compiled classes onto the extracted v6 folder, then repack to mods.
+// --------------------------------------------------------------------------
+
+ext {
+    // The extracted v6 mod folder (source of truth we overlay onto).
+    mytheriaFolder = file('../mytheria-2.0.6-autoenchanter-version-toggle-v6-old-clickgui')
+    modsFolder = file("$System.env.APPDATA/.tlauncher/legacy/Minecraft/game/mods")
+}
+
+task overlayClasses(dependsOn: 'remapJar') {
+    description = 'Extract remapped classes and overlay onto the v6 folder'
+    doLast {
+        def remappedJar = tasks.remapJar.archiveFile.get().asFile
+        copy {
+            from zipTree(remappedJar)
+            into mytheriaFolder
+            include '**/*.class'
+        }
+        println "Overlaid classes from ${remappedJar.name} onto ${mytheriaFolder}"
+    }
+}
+
+task repackJar(type: Zip, dependsOn: 'overlayClasses') {
+    description = 'Repack the v6 folder into the active mod JAR in the mods directory'
+    // Deploys under the SAME name as the active mod so it replaces it in-game.
+    archiveFileName = 'mytheria-2.0.6.jar'
+    destinationDirectory = modsFolder
+    from mytheriaFolder
+    exclude '.git/**', 'README.md', '.gitignore'
+    doLast {
+        println "Wrote ${archiveFile.get().asFile} " +
+                "(${(archiveFile.get().asFile.length() / 1024 / 1024).round(2)} MB)"
+    }
+}
+
+task deploy(dependsOn: 'repackJar') {
+    description = 'Full build: compile -> remap -> overlay -> repack -> deploy v6 to mods'
+}
