@@ -210,40 +210,52 @@ public class NeVasilekFarmilka extends BaseModule {
       new NeVasilekFarmilka.SwordEnchantRequirement("hell", new String[]{"Ад"}, 3),
       new NeVasilekFarmilka.SwordEnchantRequirement("detection", new String[]{"Детекция", "Detection"}, 3)
    };
-   private final ModeSetting mode = new ModeSetting(this, "Режим");
+   // ============== PATCH: section/tab selector (menu navigation) ==============
+   private final ModeSetting section = new ModeSetting(this, "Раздел");
+   private final ModeSetting.Value secGeneral = new ModeSetting.Value(this.section, "Общие");
+   private final ModeSetting.Value secPickaxe = new ModeSetting.Value(this.section, "Кирки");
+   private final ModeSetting.Value secSword = new ModeSetting.Value(this.section, "Мечи");
+   // Show only when the matching section tab is active:
+   private final java.util.function.BooleanSupplier inGeneral = () -> !this.section.is(this.secGeneral);
+   private final java.util.function.BooleanSupplier inPickaxe = () -> !this.section.is(this.secPickaxe);
+   private final java.util.function.BooleanSupplier inSword   = () -> !this.section.is(this.secSword);
+   // ============== END PATCH ==============
+   private final ModeSetting mode = new ModeSetting(this, "Режим", () -> !this.section.is(this.secGeneral));
    private final ModeSetting.Value modeEnchantTarget = new ModeSetting.Value(this.mode, "Чары (выбор)");
-   private final ModeSetting targetItemType = new ModeSetting(this, "Тип предмета");
+   private final ModeSetting targetItemType = new ModeSetting(this, "Тип предмета", () -> !this.section.is(this.secGeneral));
    private final ModeSetting.Value typePickaxes = new ModeSetting.Value(this.targetItemType, "Кирки");
    private final ModeSetting.Value typeSwords = new ModeSetting.Value(this.targetItemType, "Мечи");
    private final ModeSetting.Value typeBooks = new ModeSetting.Value(this.targetItemType, "Книги");
    private final ModeSetting.Value typeBoots = new ModeSetting.Value(this.targetItemType, "Ботинки");
-   private final ModeSetting targetEnchant = new ModeSetting(this, "Целевые чары");
-   private final ModeSetting.Value enchantMagnet = new ModeSetting.Value(this.targetEnchant, "Магнит");
-   private final ModeSetting.Value enchantBulldozer = new ModeSetting.Value(this.targetEnchant, "Бульдозер");
-   private final ModeSetting.Value enchantWaterWalk = new ModeSetting.Value(this.targetEnchant, "Подводная ходьба");
-   private final ModeSetting.Value enchantDetection = new ModeSetting.Value(this.targetEnchant, "Детекция");
-   private final ModeSetting.Value enchantPoison = new ModeSetting.Value(this.targetEnchant, "Яд");
-   private final ModeSetting.Value enchantVampirism = new ModeSetting.Value(this.targetEnchant, "Вампиризм");
-   private final ModeSetting.Value enchantOxidation = new ModeSetting.Value(this.targetEnchant, "Окисление");
-   private final SliderSetting actionDelay = new SliderSetting(this, "Задержка действий").min(1.0F).max(2000.0F).step(1.0F).currentValue(250.0F).suffix("ms");
-   private final SliderSetting searchTimeoutMs = new SliderSetting(this, "Таймаут поиска")
+   // Целевые чары: shown in BOTH Кирки and Мечи sections (hidden in Общие);
+   // individual options are filtered by section below.
+   private final ModeSetting targetEnchant = new ModeSetting(this, "Целевые чары", () -> this.section.is(this.secGeneral));
+   private final ModeSetting.Value enchantMagnet = new ModeSetting.Value(this.targetEnchant, "Магнит", "", () -> !this.section.is(this.secPickaxe));
+   private final ModeSetting.Value enchantBulldozer = new ModeSetting.Value(this.targetEnchant, "Бульдозер", "", () -> !this.section.is(this.secPickaxe));
+   private final ModeSetting.Value enchantWaterWalk = new ModeSetting.Value(this.targetEnchant, "Подводная ходьба", "", () -> !this.section.is(this.secPickaxe));
+   private final ModeSetting.Value enchantDetection = new ModeSetting.Value(this.targetEnchant, "Детекция", "", () -> !this.section.is(this.secSword));
+   private final ModeSetting.Value enchantPoison = new ModeSetting.Value(this.targetEnchant, "Яд", "", () -> !this.section.is(this.secSword));
+   private final ModeSetting.Value enchantVampirism = new ModeSetting.Value(this.targetEnchant, "Вампиризм", "", () -> !this.section.is(this.secSword));
+   private final ModeSetting.Value enchantOxidation = new ModeSetting.Value(this.targetEnchant, "Окисление", "", () -> !this.section.is(this.secSword));
+   private final SliderSetting actionDelay = new SliderSetting(this, "Задержка действий", () -> !this.section.is(this.secGeneral)).min(1.0F).max(2000.0F).step(1.0F).currentValue(250.0F).suffix("ms");
+   private final SliderSetting searchTimeoutMs = new SliderSetting(this, "Таймаут поиска", () -> !this.section.is(this.secGeneral))
       .min(1000.0F)
       .max(20000.0F)
       .step(500.0F)
       .currentValue(6000.0F)
       .suffix("ms");
-   private final SliderSetting priceCacheSeconds = new SliderSetting(this, "Кэш цен").min(0.0F).max(600.0F).step(5.0F).currentValue(30.0F).suffix("s");
-   private final BooleanSetting sellEnabled = new BooleanSetting(this, "Автопродажа").enabled(true);
-   private final ModeSetting sellPriceMode = new ModeSetting(this, "Режим цены");
+   private final SliderSetting priceCacheSeconds = new SliderSetting(this, "Кэш цен", () -> !this.section.is(this.secGeneral)).min(0.0F).max(600.0F).step(5.0F).currentValue(30.0F).suffix("s");
+   private final BooleanSetting sellEnabled = new BooleanSetting(this, "Автопродажа", () -> !this.section.is(this.secGeneral)).enabled(true);
+   private final ModeSetting sellPriceMode = new ModeSetting(this, "Режим цены", () -> !this.section.is(this.secGeneral));
    private final ModeSetting.Value priceMarket = new ModeSetting.Value(this.sellPriceMode, "Маркет");
    private final ModeSetting.Value priceFixed = new ModeSetting.Value(this.sellPriceMode, "Фикс");
-   private final SliderSetting marketPercent = new SliderSetting(this, "Процент от рынка", () -> !this.sellPriceMode.is(this.priceMarket))
+   private final SliderSetting marketPercent = new SliderSetting(this, "Процент от рынка", () -> !this.section.is(this.secGeneral) || !this.sellPriceMode.is(this.priceMarket))
       .min(1.0F)
       .max(300.0F)
       .step(1.0F)
       .currentValue(100.0F)
       .suffix("%");
-   private final SliderSetting sellFixedPrice = new SliderSetting(this, "Фиксированная цена", () -> !this.sellPriceMode.is(this.priceFixed))
+   private final SliderSetting sellFixedPrice = new SliderSetting(this, "Фиксированная цена", () -> !this.section.is(this.secGeneral) || !this.sellPriceMode.is(this.priceFixed))
       .min(1.0F)
       .max(1000000.0F)
       .step(1.0F)
@@ -361,33 +373,33 @@ public class NeVasilekFarmilka extends BaseModule {
 
    public NeVasilekFarmilka() {
       this.sellFixedPrice.max(1.0E7F);
-      this.minProfit = new SliderSetting(this, "Минимальная прибыль").min(0.0F).max(1000000.0F).step(1.0F).currentValue(0.0F);
-      this.minXpPriceStack = new SliderSetting(this, "Мин. цена XP за стак").min(1.0F).max(500000.0F).step(1.0F).currentValue(1.0F);
-      this.maxXpPriceStack = new SliderSetting(this, "Макс. цена XP за стак").min(1.0F).max(7000000.0F).step(1.0F).currentValue(50000.0F);
+      this.minProfit = new SliderSetting(this, "Минимальная прибыль", () -> !this.section.is(this.secGeneral)).min(0.0F).max(1000000.0F).step(1.0F).currentValue(0.0F);
+      this.minXpPriceStack = new SliderSetting(this, "Мин. цена XP за стак", () -> !this.section.is(this.secGeneral)).min(1.0F).max(500000.0F).step(1.0F).currentValue(1.0F);
+      this.maxXpPriceStack = new SliderSetting(this, "Макс. цена XP за стак", () -> !this.section.is(this.secGeneral)).min(1.0F).max(7000000.0F).step(1.0F).currentValue(50000.0F);
       this.maxXpPriceStack.max(1.5E7F);
-      this.maxSharpnessSwordPrice = new SliderSetting(this, "Макс. цена меча Острота 7").min(1.0F).max(1.0E8F).step(1.0F).currentValue(1000000.0F);
-      this.maxEnchantSwordPrice = new SliderSetting(this, "Макс. цена меча для чар").min(1.0F).max(1.0E8F).step(1.0F).currentValue(100000.0F);
-      this.countFarm = new SliderSetting(this, "Количество для фарма").min(1.0F).max(20.0F).step(1.0F).currentValue(1.0F);
-      this.targetXpLevel = new SliderSetting(this, "Целевой уровень XP").min(1.0F).max(100.0F).step(1.0F).currentValue(30.0F);
-      this.lapisPerEnchant = new SliderSetting(this, "Лазурит на чарку").min(1.0F).max(64.0F).step(1.0F).currentValue(3.0F);
-      this.tableRange = new SliderSetting(this, "Радиус стола чар").min(1.0F).max(8.0F).step(1.0F).currentValue(4.0F);
-      this.grindstoneRange = new SliderSetting(this, "Радиус точила").min(1.0F).max(8.0F).step(1.0F).currentValue(4.0F);
-      this.craftRange = new SliderSetting(this, "Радиус верстака").min(1.0F).max(8.0F).step(1.0F).currentValue(4.0F);
-      this.anvilRange = new SliderSetting(this, "Радиус наковальни").min(1.0F).max(8.0F).step(1.0F).currentValue(4.0F);
-      this.smithRange = new SliderSetting(this, "Радиус кузницы").min(1.0F).max(8.0F).step(1.0F).currentValue(4.0F);
-      this.maxBuyAttempts = new SliderSetting(this, "Макс. попыток покупки").min(1.0F).max(512.0F).step(1.0F).currentValue(96.0F);
-      this.autoEatInModule = new BooleanSetting(this, "Автоеда в модуле");
-      this.autoEatThreshold = new SliderSetting(this, "Порог голода").min(1.0F).max(20.0F).step(1.0F).currentValue(18.0F);
-      this.xpSearchName = new StringSetting(this, "Название поиска XP").text("Опыт с уровнем 15");
-      this.woodSearchName = new StringSetting(this, "Название поиска дерева").text("Дерево");
-      this.preferStickBuy = new BooleanSetting(this, "Приоритет покупки палок");
-      this.anarchyNumber = new StringSetting(this, "Номер анархии").text("222");
-      this.accountQueueEnabled = new BooleanSetting(this, "Очередь аккаунтов").enabled(false);
-      this.accountMode = new ModeSetting(this, "Тип аккаунта");
+      this.maxSharpnessSwordPrice = new SliderSetting(this, "Макс. цена меча Острота 7", () -> !this.section.is(this.secSword)).min(1.0F).max(1.0E8F).step(1.0F).currentValue(1000000.0F);
+      this.maxEnchantSwordPrice = new SliderSetting(this, "Макс. цена меча для чар", () -> !this.section.is(this.secSword)).min(1.0F).max(1.0E8F).step(1.0F).currentValue(100000.0F);
+      this.countFarm = new SliderSetting(this, "Количество для фарма", () -> !this.section.is(this.secGeneral)).min(1.0F).max(20.0F).step(1.0F).currentValue(1.0F);
+      this.targetXpLevel = new SliderSetting(this, "Целевой уровень XP", () -> !this.section.is(this.secGeneral)).min(1.0F).max(100.0F).step(1.0F).currentValue(30.0F);
+      this.lapisPerEnchant = new SliderSetting(this, "Лазурит на чарку", () -> !this.section.is(this.secGeneral)).min(1.0F).max(64.0F).step(1.0F).currentValue(3.0F);
+      this.tableRange = new SliderSetting(this, "Радиус стола чар", () -> !this.section.is(this.secGeneral)).min(1.0F).max(8.0F).step(1.0F).currentValue(4.0F);
+      this.grindstoneRange = new SliderSetting(this, "Радиус точила", () -> !this.section.is(this.secGeneral)).min(1.0F).max(8.0F).step(1.0F).currentValue(4.0F);
+      this.craftRange = new SliderSetting(this, "Радиус верстака", () -> !this.section.is(this.secGeneral)).min(1.0F).max(8.0F).step(1.0F).currentValue(4.0F);
+      this.anvilRange = new SliderSetting(this, "Радиус наковальни", () -> !this.section.is(this.secSword)).min(1.0F).max(8.0F).step(1.0F).currentValue(4.0F);
+      this.smithRange = new SliderSetting(this, "Радиус кузницы", () -> !this.section.is(this.secSword)).min(1.0F).max(8.0F).step(1.0F).currentValue(4.0F);
+      this.maxBuyAttempts = new SliderSetting(this, "Макс. попыток покупки", () -> !this.section.is(this.secGeneral)).min(1.0F).max(512.0F).step(1.0F).currentValue(96.0F);
+      this.autoEatInModule = new BooleanSetting(this, "Автоеда в модуле", () -> !this.section.is(this.secGeneral));
+      this.autoEatThreshold = new SliderSetting(this, "Порог голода", () -> !this.section.is(this.secGeneral)).min(1.0F).max(20.0F).step(1.0F).currentValue(18.0F);
+      this.xpSearchName = new StringSetting(this, "Название поиска XP", () -> !this.section.is(this.secGeneral)).text("Опыт с уровнем 15");
+      this.woodSearchName = new StringSetting(this, "Название поиска дерева", () -> !this.section.is(this.secGeneral)).text("Дерево");
+      this.preferStickBuy = new BooleanSetting(this, "Приоритет покупки палок", () -> !this.section.is(this.secGeneral));
+      this.anarchyNumber = new StringSetting(this, "Номер анархии", () -> !this.section.is(this.secGeneral)).text("222");
+      this.accountQueueEnabled = new BooleanSetting(this, "Очередь аккаунтов", () -> !this.section.is(this.secGeneral)).enabled(false);
+      this.accountMode = new ModeSetting(this, "Тип аккаунта", () -> !this.section.is(this.secGeneral));
       this.accountModeMain = new ModeSetting.Value(this.accountMode, "Основной");
       this.accountModeTwink = new ModeSetting.Value(this.accountMode, "Твинк");
-      this.accountQueuePort = new SliderSetting(this, "Порт очереди").min(1025.0F).max(65535.0F).step(1.0F).currentValue(29876.0F);
-      this.accountQueueName = new StringSetting(this, "Имя аккаунта").text("");
+      this.accountQueuePort = new SliderSetting(this, "Порт очереди", () -> !this.section.is(this.secGeneral)).min(1025.0F).max(65535.0F).step(1.0F).currentValue(29876.0F);
+      this.accountQueueName = new StringSetting(this, "Имя аккаунта", () -> !this.section.is(this.secGeneral)).text("");
       this.setState(NeVasilekFarmilka.State.IDLE);
       this.setCraftStage(NeVasilekFarmilka.CraftStage.NONE);
       this.actionTimer = new Timer();
