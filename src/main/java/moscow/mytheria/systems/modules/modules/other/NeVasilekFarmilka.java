@@ -206,7 +206,6 @@ public class NeVasilekFarmilka extends BaseModule {
    private static final String KEY_DIAMOND = "diamond";
    private static final String KEY_WOOD = "wood";
    private static final String KEY_LAPIS = "lapis";
-   private static final long MAX_LAPIS_AUCTION_PRICE = 100000L;
    private static final String KEY_XP = "xp";
    private static final String KEY_OUTPUT = "output";
    private static final NeVasilekFarmilka.SwordEnchantRequirement[] SWORD_REQUIREMENTS = new NeVasilekFarmilka.SwordEnchantRequirement[]{
@@ -228,6 +227,7 @@ public class NeVasilekFarmilka extends BaseModule {
    private final ModeSetting.Value secGeneral = new ModeSetting.Value(this.section, "Общие");
    private final ModeSetting.Value secPickaxe = new ModeSetting.Value(this.section, "Кирки");
    private final ModeSetting.Value secSword = new ModeSetting.Value(this.section, "Мечи");
+   private final ModeSetting.Value secItems = new ModeSetting.Value(this.section, "Предметы");
    private final ModeSetting.Value secAccounts = new ModeSetting.Value(this.section, "Аккаунты");
    // Show only when the matching section tab is active:
    private final java.util.function.BooleanSupplier inGeneral = () -> !this.section.is(this.secGeneral);
@@ -300,6 +300,10 @@ public class NeVasilekFarmilka extends BaseModule {
    private final StringSetting accountQueueName;
    private final StringSetting sellFixedPriceInput;
    private final StringSetting maxXpPriceStackInput;
+   private final StringSetting maxLapisPriceInput;
+   private final StringSetting maxDiamondPriceInput;
+   private final StringSetting maxWoodPriceInput;
+   private final StringSetting maxNetheritePriceInput;
    private final StringSetting maxSharpnessSwordPriceInput;
    private final StringSetting maxEnchantSwordPriceInput;
    private final BooleanSetting anarchyRelogEnabled;
@@ -407,7 +411,11 @@ public class NeVasilekFarmilka extends BaseModule {
       this.minXpPriceStack = new SliderSetting(this, "Мин. цена XP за стак", HIDDEN_SETTING).min(1.0F).max(500000.0F).step(1.0F).currentValue(1.0F);
       this.maxXpPriceStack = new SliderSetting(this, "Макс. XP / стак", HIDDEN_SETTING).min(1.0F).max(7000000.0F).step(1.0F).currentValue(50000.0F);
       this.maxXpPriceStack.max(1.5E7F);
-      this.maxXpPriceStackInput = new StringSetting(this, "Макс. XP / стак", () -> !this.section.is(this.secGeneral)).text("50000");
+      this.maxXpPriceStackInput = new StringSetting(this, "Макс. XP / стак", () -> !this.section.is(this.secItems)).text("50000");
+      this.maxLapisPriceInput = new StringSetting(this, "Лазурит до", () -> !this.section.is(this.secItems)).text("100000");
+      this.maxDiamondPriceInput = new StringSetting(this, "Алмаз до", () -> !this.section.is(this.secItems)).text("100000000");
+      this.maxWoodPriceInput = new StringSetting(this, "Дерево до", () -> !this.section.is(this.secItems)).text("100000000");
+      this.maxNetheritePriceInput = new StringSetting(this, "Незерит до", () -> !this.section.is(this.secItems)).text("100000000");
       this.maxSharpnessSwordPrice = new SliderSetting(this, "Острота 7 до", HIDDEN_SETTING).min(1.0F).max(1.0E8F).step(1.0F).currentValue(1000000.0F);
       this.maxEnchantSwordPrice = new SliderSetting(this, "Меч под яд до", HIDDEN_SETTING).min(1.0F).max(1.0E8F).step(1.0F).currentValue(100000.0F);
       this.maxSharpnessSwordPriceInput = new StringSetting(this, "Острота 7 до", () -> !this.section.is(this.secSword)).text("1000000");
@@ -3297,7 +3305,7 @@ public class NeVasilekFarmilka extends BaseModule {
                   if (var14 < 1L || var14 > this.getLongInput(this.maxXpPriceStackInput, 50000L, 1L, 15000000L)) {
                      continue;
                   }
-               } else if (!this.isLapisAuctionPriceAllowed(var13, var11)) {
+               } else if (!this.isMaterialAuctionPriceAllowed(var13, var11)) {
                   continue;
                }
 
@@ -3385,7 +3393,7 @@ public class NeVasilekFarmilka extends BaseModule {
                if (var15 < 1L || var15 > this.getLongInput(this.maxXpPriceStackInput, 50000L, 1L, 15000000L)) {
                   continue;
                }
-            } else if (!this.isLapisAuctionPriceAllowed(var14, var12)) {
+            } else if (!this.isMaterialAuctionPriceAllowed(var14, var12)) {
                continue;
             }
 
@@ -3397,8 +3405,17 @@ public class NeVasilekFarmilka extends BaseModule {
       return var8;
    }
 
-   private boolean isLapisAuctionPriceAllowed(class_1799 var1, long var2) {
-      return var1.method_7909() != class_1802.field_8759 || var2 <= MAX_LAPIS_AUCTION_PRICE;
+   private boolean isMaterialAuctionPriceAllowed(class_1799 var1, long var2) {
+      if (var1.method_7909() == class_1802.field_8759) {
+         return var2 <= this.getLongInput(this.maxLapisPriceInput, 100000L, 1L, 100000000L);
+      } else if (var1.method_7909() == class_1802.field_8477) {
+         return var2 <= this.getLongInput(this.maxDiamondPriceInput, 100000000L, 1L, 100000000L);
+      } else if (var1.method_7909() == class_1802.field_22020) {
+         return var2 <= this.getLongInput(this.maxNetheritePriceInput, 100000000L, 1L, 100000000L);
+      } else {
+         return !this.isLogItem(var1) && !this.isPlankItem(var1)
+            || var2 <= this.getLongInput(this.maxWoodPriceInput, 100000000L, 1L, 100000000L);
+      }
    }
 
    private boolean matchesQuery(class_1799 var1, String var2) {
