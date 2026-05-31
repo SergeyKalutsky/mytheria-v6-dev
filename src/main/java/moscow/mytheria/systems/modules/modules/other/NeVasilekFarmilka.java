@@ -206,6 +206,7 @@ public class NeVasilekFarmilka extends BaseModule {
    private static final String KEY_DIAMOND = "diamond";
    private static final String KEY_WOOD = "wood";
    private static final String KEY_LAPIS = "lapis";
+   private static final long MAX_LAPIS_AUCTION_PRICE = 100000L;
    private static final String KEY_XP = "xp";
    private static final String KEY_OUTPUT = "output";
    private static final NeVasilekFarmilka.SwordEnchantRequirement[] SWORD_REQUIREMENTS = new NeVasilekFarmilka.SwordEnchantRequirement[]{
@@ -3296,6 +3297,8 @@ public class NeVasilekFarmilka extends BaseModule {
                   if (var14 < 1L || var14 > this.getLongInput(this.maxXpPriceStackInput, 50000L, 1L, 15000000L)) {
                      continue;
                   }
+               } else if (!this.isLapisAuctionPriceAllowed(var13, var11)) {
+                  continue;
                }
 
                var6 = var9;
@@ -3382,6 +3385,8 @@ public class NeVasilekFarmilka extends BaseModule {
                if (var15 < 1L || var15 > this.getLongInput(this.maxXpPriceStackInput, 50000L, 1L, 15000000L)) {
                   continue;
                }
+            } else if (!this.isLapisAuctionPriceAllowed(var14, var12)) {
+               continue;
             }
 
             var6 = var10;
@@ -3390,6 +3395,10 @@ public class NeVasilekFarmilka extends BaseModule {
       }
 
       return var8;
+   }
+
+   private boolean isLapisAuctionPriceAllowed(class_1799 var1, long var2) {
+      return var1.method_7909() != class_1802.field_8759 || var2 <= MAX_LAPIS_AUCTION_PRICE;
    }
 
    private boolean matchesQuery(class_1799 var1, String var2) {
