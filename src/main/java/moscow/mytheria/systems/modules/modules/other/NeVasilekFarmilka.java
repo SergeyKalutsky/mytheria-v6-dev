@@ -52,12 +52,14 @@ import net.minecraft.class_1792;
 import net.minecraft.class_1799;
 import net.minecraft.class_1802;
 import net.minecraft.class_1887;
+import net.minecraft.class_1937;
 import net.minecraft.class_2246;
 import net.minecraft.class_2248;
 import net.minecraft.class_2338;
 import net.minecraft.class_2350;
 import net.minecraft.class_243;
 import net.minecraft.class_2561;
+import net.minecraft.class_299;
 import net.minecraft.class_337;
 import net.minecraft.class_345;
 import net.minecraft.class_3532;
@@ -66,8 +68,12 @@ import net.minecraft.class_3965;
 import net.minecraft.class_437;
 import net.minecraft.class_465;
 import net.minecraft.class_4862;
+import net.minecraft.class_516;
 import net.minecraft.class_639;
 import net.minecraft.class_642;
+import net.minecraft.class_10297;
+import net.minecraft.class_10352;
+import net.minecraft.class_10363;
 import net.minecraft.class_6880;
 import net.minecraft.class_9290;
 import net.minecraft.class_9334;
@@ -2632,11 +2638,19 @@ public class NeVasilekFarmilka extends BaseModule {
    }
 
    private boolean craftPlanks(class_1714 var1) {
+      if (this.craftViaRecipeBook(var1, this::isPlankItem)) {
+         return true;
+      }
+
       this.clearCraftingGrid(var1);
       return !this.placeOneCraftIngredient(var1, this::isLogItem, 4) ? false : this.takeCraftingResult(var1, null);
    }
 
    private boolean craftSticks(class_1714 var1) {
+      if (this.craftViaRecipeBook(var1, var0 -> var0.method_7909() == class_1802.field_8600)) {
+         return true;
+      }
+
       this.clearCraftingGrid(var1);
       if (!this.placeOneCraftIngredient(var1, this::isPlankItem, 1)) {
          return false;
@@ -2650,6 +2664,8 @@ public class NeVasilekFarmilka extends BaseModule {
          return false;
       } else if (this.isPickaxeRecipePlaced(var1)) {
          return this.takeCraftingResult(var1, class_1802.field_8377) || this.isPickaxeRecipePlaced(var1);
+      } else if (this.craftViaRecipeBook(var1, var0 -> var0.method_7909() == class_1802.field_8377)) {
+         return true;
       } else {
          this.clearCraftingGrid(var1);
          if (!this.placeOneCraftIngredient(var1, var0 -> var0.method_7909() == class_1802.field_8477, 0)) {
@@ -2673,6 +2689,8 @@ public class NeVasilekFarmilka extends BaseModule {
          return false;
       } else if (this.isSwordRecipePlaced(var1)) {
          return this.takeCraftingResult(var1, class_1802.field_8802) || this.isSwordRecipePlaced(var1);
+      } else if (this.craftViaRecipeBook(var1, var0 -> var0.method_7909() == class_1802.field_8802)) {
+         return true;
       } else {
          this.clearCraftingGrid(var1);
          if (!this.placeOneCraftIngredient(var1, var0 -> var0.method_7909() == class_1802.field_8477, 1)) {
@@ -2688,14 +2706,28 @@ public class NeVasilekFarmilka extends BaseModule {
    }
 
    private boolean craftViaRecipeBook(class_1714 var1, Predicate<class_1799> var2) {
-      for (int var3 = 0; var3 < var1.field_7761.size(); var3++) {
-         class_1735 var5 = (class_1735)var1.field_7761.get(var3);
-         class_1799 var4;
-         if (var5.field_7871 instanceof class_1731 && !(var4 = var5.method_7677()).method_7960() && var2.test(var4)) {
-            mc.field_1761.method_2906(var1.field_7763, var3, 0, class_1713.field_7790, mc.field_1724);
-            this.clearCraftingGrid(var1);
-            this.clearCursorSafely(var1, -1);
-            return true;
+      int var3 = this.findCraftingResultSlotId(var1);
+      if (var3 >= 0 && var3 < var1.field_7761.size()) {
+         class_1799 var4 = ((class_1735)var1.field_7761.get(var3)).method_7677();
+         if (!var4.method_7960() && var2.test(var4)) {
+            return this.takeCraftingResult(var1, var4.method_7909());
+         }
+      }
+
+      if (mc.field_1724 == null || mc.field_1687 == null || mc.field_1761 == null || !var1.method_34255().method_7960()) {
+         return false;
+      }
+
+      class_299 var9 = mc.field_1724.method_3130();
+      class_10352 var10 = class_10363.method_65008((class_1937)mc.field_1687);
+
+      for (class_516 var6 : var9.method_1393()) {
+         for (class_10297 var8 : var6.method_2650()) {
+            if (var8.comp_3263().comp_3258().method_64738(var10).stream().anyMatch(var2)) {
+               this.clearCraftingGrid(var1);
+               mc.field_1761.method_2912(var1.field_7763, var8.comp_3262(), true);
+               return true;
+            }
          }
       }
 
