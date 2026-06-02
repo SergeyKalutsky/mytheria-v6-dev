@@ -9,7 +9,7 @@ original JAR** to produce a new mod JAR. The rest of the mod is untouched.
 
 Current patches:
 - **Action logging** — structured JSON-lines log of the AutoEnchanter
-  (`NeVasilekFarmilka`) state machine: buys, crafts, sells, chat, state changes.
+  (`AutoEnchanter`) state machine: buys, crafts, sells, chat, state changes.
 - **Menu sections** — the AutoEnchanter settings are split into tabs
   (`Раздел`: Общие / Кирки / Мечи) via per-setting visibility conditions.
 
@@ -42,7 +42,7 @@ mytheria-v6-dev/
 │   └── mytheria-v6.jar       # ORIGINAL mod JAR — REQUIRED (build base + classpath)
 ├── src/main/java/moscow/mytheria/
 │   ├── logger/MytheriaLogger.java          # our JSON logger
-│   └── systems/.../NeVasilekFarmilka.java  # the patched module
+│   └── systems/.../AutoEnchanter.java  # the patched module
 └── decompiled/               # full decompiled reference (gitignored; regenerate)
 ```
 
@@ -153,7 +153,7 @@ The trade-off: MC symbols are obfuscated-ish (`class_310`, `method_1551`). Keep
 `decompiled/` open for reference, or look names up in a Yarn↔intermediary table.
 
 Our own classes overriding the mod's must keep the **exact same package + name**
-(e.g. `moscow.mytheria.systems.modules.modules.other.NeVasilekFarmilka`) so they
+(e.g. `moscow.mytheria.systems.modules.modules.other.AutoEnchanter`) so they
 replace the originals during the merge.
 
 ---
@@ -222,4 +222,4 @@ new ModeSetting.Value(this.targetEnchant, "Опция", "", () -> !this.section.
 ```
 
 `secGeneral` / `secPickaxe` / `secSword` are the three section values declared at the
-top of `NeVasilekFarmilka`.
+top of `AutoEnchanter`.

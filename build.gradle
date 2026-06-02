@@ -74,6 +74,7 @@ task prepareModDir(dependsOn: 'remapJar') {
             from zipTree(tasks.remapJar.archiveFile.get().asFile)
             into workDir
             include '**/*.class'
+            include 'assets/**'
         }
         println "Prepared mod working dir at ${workDir}"
     }

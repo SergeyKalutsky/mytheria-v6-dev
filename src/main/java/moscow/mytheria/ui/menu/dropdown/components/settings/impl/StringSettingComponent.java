@@ -10,6 +10,7 @@ import moscow.mytheria.systems.localization.Localizator;
 import moscow.mytheria.systems.setting.settings.StringSetting;
 import moscow.mytheria.ui.components.textfield.TextField;
 import moscow.mytheria.ui.menu.dropdown.components.settings.MenuSettingComponent;
+import moscow.mytheria.utility.colors.ColorRGBA;
 import moscow.mytheria.utility.colors.Colors;
 import moscow.mytheria.utility.game.cursor.CursorType;
 import moscow.mytheria.utility.game.cursor.CursorUtility;
@@ -61,7 +62,9 @@ public class StringSettingComponent extends MenuSettingComponent<StringSetting> 
          0.99F,
          fieldWidth
       );
-      context.drawRoundedRect(fieldX, fieldY, fieldWidth, fieldHeight, BorderRadius.all(4.0F), Colors.getBackgroundColor().withAlpha(95.0F * alpha));
+      context.drawLiquidGlass(fieldX, fieldY, fieldWidth, fieldHeight, 5.0F, BorderRadius.all(5.0F), ColorRGBA.WHITE.withAlpha(32.0F * alpha), true);
+      context.drawRoundedRect(fieldX, fieldY, fieldWidth, fieldHeight, BorderRadius.all(5.0F), Colors.getBackgroundColor().withAlpha(62.0F * alpha));
+      context.drawRoundedBorder(fieldX, fieldY, fieldWidth, fieldHeight, 0.7F, BorderRadius.all(5.0F), ColorRGBA.WHITE.withAlpha(65.0F * alpha));
 
       this.textField.set(fieldX + 5.0F, fieldY, fieldWidth - 10.0F, fieldHeight);
       this.textField.setAlpha(alpha);
