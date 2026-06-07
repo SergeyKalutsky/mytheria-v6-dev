@@ -1786,17 +1786,17 @@ public class AutoEnchanter extends BaseModule {
 
          int var4 = this.findPickaxeSlotWithAnyEnchant(var5);
          if (var4 != -1) {
-            if (!this.isSwordMode()) {
-               this.setState(AutoEnchanter.State.GRIND_OPEN);
-               this.actionTimer.reset();
-               return;
-            }
-
-            if (this.hasAnvilCandidates()) {
+            // A grindable sword (issue #2) = netherite, Sharpness < 7, no Яд≥2, not final.
+            // If we can anvil-combine (have both a sharpness sword and a poison sword) do
+            // that; otherwise grind it clean so it can be re-enchanted toward Sharpness 7.
+            // Poison swords (Яд≥2) are NOT grindable, so they are never re-enchanted.
+            if (this.isSwordMode() && this.hasAnvilCandidates()) {
                this.setState(AutoEnchanter.State.ANVIL_OPEN);
-               this.actionTimer.reset();
-               return;
+            } else {
+               this.setState(AutoEnchanter.State.GRIND_OPEN);
             }
+            this.actionTimer.reset();
+            return;
          }
 
          this.setState(AutoEnchanter.State.IDLE);
@@ -4831,12 +4831,17 @@ public class AutoEnchanter extends BaseModule {
       return var1 != null && !var1.method_7960() && var1.method_7909() == class_1802.field_22022 && !this.hasBadEnchant(var1) && !this.hasAnyEnchant(var1);
    }
 
+   /** Minimum Яд (Poison) level worth keeping. Яд 1 is not worth it. */
+   private static final int POISON_MIN_LEVEL = 2;
+
    private boolean isPoisonSword(class_1799 var1) {
       return var1 != null
          && !var1.method_7960()
          && var1.method_7909() == class_1802.field_22022
          && !this.hasBadEnchant(var1)
-         && this.hasEnchantNeedles(var1, this.getTargetEnchantNeedles(), false);
+         // Read Яд from BOTH lore and the enchantment component (issue #1),
+         // and require level >= 2 (issue #3 — Яд 1 is skipped).
+         && this.classifier.getEnchantLevel(var1, this.getTargetEnchantNeedles()) >= POISON_MIN_LEVEL;
    }
 
    private int countSharpnessSwords() {

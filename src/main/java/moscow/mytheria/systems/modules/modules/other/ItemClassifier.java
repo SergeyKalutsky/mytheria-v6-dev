@@ -58,24 +58,34 @@ final class ItemClassifier {
      * auction swords always came back as 0.
      */
     int getSwordEnchantLevel(class_1799 stack, SwordEnchantRequirement req) {
+        return getEnchantLevel(stack, req.needles);
+    }
+
+    /**
+     * Highest level of the enchant identified by {@code needles}, read from BOTH
+     * the custom lore AND the vanilla enchantment component. Works for vanilla
+     * enchants (Sharpness…) and custom registered enchants (Яд/Poison…) alike,
+     * regardless of which storage the server uses. 0 if absent.
+     */
+    int getEnchantLevel(class_1799 stack, String[] needles) {
         int best = 0;
 
-        // 1) custom lore text
+        // 1) custom lore text (e.g. a literal "Острота 7" / "Яд 2" lore line)
         for (String line : getLoreLines(stack)) {
-            int lvl = AutoEnchanterText.extractLevelForNeedles(line, req.needles);
+            int lvl = AutoEnchanterText.extractLevelForNeedles(line, needles);
             if (lvl > best) {
                 best = lvl;
             }
         }
 
-        // 2) vanilla enchantment component (same access path hasBadEnchant uses)
+        // 2) enchantment component (same access path hasBadEnchant uses)
         for (Entry entry : stack.method_58657().method_57539()) {
             if (entry.getKey() == null || entry.getValue() <= 0) {
                 continue;
             }
             String name = ((class_1887) ((class_6880) entry.getKey()).comp_349()).comp_2686().getString();
             String norm = AutoEnchanterText.normalizeLettersOnly(AutoEnchanterText.stripFormatting(name));
-            if (AutoEnchanterText.containsAnyNeedle(norm, req.needles) && entry.getValue() > best) {
+            if (AutoEnchanterText.containsAnyNeedle(norm, needles) && entry.getValue() > best) {
                 best = entry.getValue();
             }
         }
