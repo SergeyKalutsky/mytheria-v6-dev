@@ -3333,23 +3333,6 @@ public class AutoEnchanter extends BaseModule {
       }
       // ---- END PATCH ----
 
-      // Second sword: prefer an affordable Яд≥2 sword if one is on this page; only if
-      // none is present do we fall back to a plain "clean" (no Unstable/Heavy) sword.
-      boolean preferPoison = false;
-      if (this.isSwordMode() && AutoEnchanterText.isSwordAuctionNeedle(var5) && this.countSharpnessSwords() > 0) {
-         for (int d = 0; d < var16; d++) {
-            class_1799 ds = ((class_1735) var1.field_7761.get(d)).method_7677();
-            if (!ds.method_7960()
-               && ds.method_7909() == class_1802.field_22022
-               && this.isPoisonSword(ds)
-               && this.isSwordAuctionPriceAllowed(ds)
-               && this.extractPrice(ds) > 0L) {
-               preferPoison = true;
-               break;
-            }
-         }
-      }
-
       for (int var9 = 0; var9 < var16; var9++) {
          class_1799 var14 = ((class_1735)var1.field_7761.get(var9)).method_7677();
          long var10;
@@ -3361,9 +3344,9 @@ public class AutoEnchanter extends BaseModule {
                !this.isSwordMode()
                   || !AutoEnchanterText.isSwordAuctionNeedle(var5)
                   || this.isSwordAuctionPriceAllowed(var14)
-                     && (this.countSharpnessSwords() <= 0
-                            ? this.isSharpnessSword(var14)
-                            : (preferPoison ? this.isPoisonSword(var14) : this.isCleanNetheriteSword(var14)))
+                     // First sword = Sharpness 7; second sword = any clean (no Unstable/Heavy),
+                     // not itself a Sharpness sword.
+                     && (this.countSharpnessSwords() <= 0 ? this.isSharpnessSword(var14) : this.isSecondSword(var14))
             )
             && (!var3 || this.isTargetOutputItem(var14) && this.hasTargetEnchant(var14) && !this.isBadAuctionPickaxe(var14))
             && (var12 = this.extractPrice(var14)) > 0L
@@ -4741,8 +4724,8 @@ public class AutoEnchanter extends BaseModule {
    private boolean isBuySatisfied(AutoEnchanter.BuyRequest var1) {
       if ("sword_sharp".equals(var1.key)) {
          return this.countSharpnessSwords() >= var1.targetCount;
-      } else if ("sword_clean".equals(var1.key)) {
-         return this.countCleanNetheriteSwords() >= var1.targetCount;
+      } else if ("sword_second".equals(var1.key) || "sword_poison".equals(var1.key) || "sword_clean".equals(var1.key)) {
+         return this.countSecondSwords() >= var1.targetCount;
       } else if (var1.item != null) {
          return this.countItem(var1.item) >= var1.targetCount;
       } else {
@@ -4820,8 +4803,11 @@ public class AutoEnchanter extends BaseModule {
          this.buyRequests.add(new AutoEnchanter.BuyRequest("sword_sharp", "незеритовый меч", null, 1, false));
       }
 
-      if (this.countCleanNetheriteSwords() <= 0 && this.countPoisonSwords() <= 0) {
-         this.buyRequests.add(new AutoEnchanter.BuyRequest("sword_clean", "незеритовый меч", null, 1, false));
+      // Buy a SECOND sword (any netherite without Unstable/Heavy) distinct from the
+      // Sharpness sword. countSecondSwords() excludes the Sharpness sword, so having a
+      // Sharpness sword no longer falsely satisfies this.
+      if (this.countSecondSwords() <= 0) {
+         this.buyRequests.add(new AutoEnchanter.BuyRequest("sword_second", "незеритовый меч", null, 1, false));
       }
 
       int var3 = this.requiredXpBottles();
@@ -4835,7 +4821,7 @@ public class AutoEnchanter extends BaseModule {
       return this.needsXp() && !this.hasXpBottle()
          || this.countItem(class_1802.field_8759) < 1
          || this.countSharpnessSwords() <= 0
-         || this.countCleanNetheriteSwords() <= 0 && this.countPoisonSwords() <= 0;
+         || this.countSecondSwords() <= 0;
    }
 
    private boolean isSharpnessSword(class_1799 var1) {
@@ -4872,6 +4858,23 @@ public class AutoEnchanter extends BaseModule {
          // Read Яд from BOTH lore and the enchantment component (issue #1),
          // and require level >= 2 (issue #3 — Яд 1 is skipped).
          && this.classifier.getEnchantLevel(var1, this.getTargetEnchantNeedles()) >= POISON_MIN_LEVEL;
+   }
+
+   // The SECOND sword for the combine = any netherite without Unstable/Heavy that is
+   // NOT itself the Sharpness-7 sword (so our existing Sharpness sword can't double as
+   // the second sword). It need not have Яд — cheap poison-only swords may not exist.
+   private boolean isSecondSword(class_1799 var1) {
+      return this.isCleanNetheriteSword(var1) && !this.isSharpnessSword(var1);
+   }
+
+   private int countSecondSwords() {
+      int var1 = 0;
+      for (int var2 = 0; var2 < mc.field_1724.method_31548().method_5439(); var2++) {
+         if (this.isSecondSword(mc.field_1724.method_31548().method_5438(var2))) {
+            var1++;
+         }
+      }
+      return var1;
    }
 
    private int countSharpnessSwords() {
