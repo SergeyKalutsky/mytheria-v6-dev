@@ -136,9 +136,6 @@ public class AutoEnchanter extends BaseModule {
    // ============== END PATCH ==============
 
    private static final Pattern PRICE_PATTERN = Pattern.compile("([0-9][0-9\\s,\\.]+)");
-   private static final Pattern ENCHANT_LEVEL_PATTERN = Pattern.compile(
-      "(?i)(\\b\\d+\\b|\\bI{1,3}\\b|\\bl{1,3}\\b|\\bIV\\b|\\bV\\b|\\bVI\\b|\\bVII\\b|\\bVIII\\b|\\bIX\\b|\\bX\\b|[\\u2160-\\u2169\\u2170-\\u2179])"
-   );
    private static final Pattern AUCTION_PAGE_PATTERN = Pattern.compile("\\[(\\d+)\\s*/\\s*(\\d+)\\]");
    private static final Pattern ENCHANT_LEVEL_TWO_PATTERN = Pattern.compile("(?i)(\\b2\\b|\\bII\\b|\\u2161|\\u2171|\\bll\\b)");
    private static final String SEARCH_MAGNET = "Магнит";
@@ -212,21 +209,22 @@ public class AutoEnchanter extends BaseModule {
    private static final String KEY_LAPIS = "lapis";
    private static final String KEY_XP = "xp";
    private static final String KEY_OUTPUT = "output";
-   private static final AutoEnchanter.SwordEnchantRequirement[] SWORD_REQUIREMENTS = new AutoEnchanter.SwordEnchantRequirement[]{
-      new AutoEnchanter.SwordEnchantRequirement("sharpness", new String[]{"Острота", "Sharpness"}, 7),
-      new AutoEnchanter.SwordEnchantRequirement("smite", new String[]{"Кара", "Smite"}, 7),
-      new AutoEnchanter.SwordEnchantRequirement("bane", new String[]{"Бич", "Bane of Arthropods"}, 7),
-      new AutoEnchanter.SwordEnchantRequirement("sweeping", new String[]{"Разящ", "Sweeping Edge"}, 3),
-      new AutoEnchanter.SwordEnchantRequirement("fire", new String[]{"Огня", "Fire Aspect"}, 2),
-      new AutoEnchanter.SwordEnchantRequirement("looting", new String[]{"Добыч", "Looting"}, 5),
-      new AutoEnchanter.SwordEnchantRequirement("unbreaking", new String[]{"Прочн", "Unbreaking"}, 5),
-      new AutoEnchanter.SwordEnchantRequirement("expert", new String[]{"Опытн"}, 3),
-      new AutoEnchanter.SwordEnchantRequirement("vampirism", new String[]{"Вампиризм", "Vampirism"}, 2),
-      new AutoEnchanter.SwordEnchantRequirement("oxidation", new String[]{"Окисление", "Oxidation"}, 2),
-      new AutoEnchanter.SwordEnchantRequirement("hell", new String[]{"Ад"}, 3),
-      new AutoEnchanter.SwordEnchantRequirement("detection", new String[]{"Детекция", "Detection"}, 3)
+   private static final SwordEnchantRequirement[] SWORD_REQUIREMENTS = new SwordEnchantRequirement[]{
+      new SwordEnchantRequirement("sharpness", new String[]{"Острота", "Sharpness"}, 7),
+      new SwordEnchantRequirement("smite", new String[]{"Кара", "Smite"}, 7),
+      new SwordEnchantRequirement("bane", new String[]{"Бич", "Bane of Arthropods"}, 7),
+      new SwordEnchantRequirement("sweeping", new String[]{"Разящ", "Sweeping Edge"}, 3),
+      new SwordEnchantRequirement("fire", new String[]{"Огня", "Fire Aspect"}, 2),
+      new SwordEnchantRequirement("looting", new String[]{"Добыч", "Looting"}, 5),
+      new SwordEnchantRequirement("unbreaking", new String[]{"Прочн", "Unbreaking"}, 5),
+      new SwordEnchantRequirement("expert", new String[]{"Опытн"}, 3),
+      new SwordEnchantRequirement("vampirism", new String[]{"Вампиризм", "Vampirism"}, 2),
+      new SwordEnchantRequirement("oxidation", new String[]{"Окисление", "Oxidation"}, 2),
+      new SwordEnchantRequirement("hell", new String[]{"Ад"}, 3),
+      new SwordEnchantRequirement("detection", new String[]{"Детекция", "Detection"}, 3)
    };
    // ============== PATCH: section/tab selector (menu navigation) ==============
+   private final ItemClassifier classifier = new ItemClassifier(this);
    private final ModeSetting section = new ModeSetting(this, "Раздел");
    private final ModeSetting.Value secGeneral = new ModeSetting.Value(this.section, "Общие");
    private final ModeSetting.Value secPickaxe = new ModeSetting.Value(this.section, "Кирки");
@@ -557,8 +555,8 @@ public class AutoEnchanter extends BaseModule {
          if (mc.field_1724 != null) {
             String var2 = var1.getText();
             if (var2 != null && !var2.isBlank()) {
-               String var3 = stripFormatting(var2).toLowerCase(Locale.ROOT);
-               String var4 = this.normalizeLettersOnly(var3);
+               String var3 = AutoEnchanterText.stripFormatting(var2).toLowerCase(Locale.ROOT);
+               String var4 = AutoEnchanterText.normalizeLettersOnly(var3);
                String cls = "other";
                if (this.isAfkBlockedMessage(var3, var2)) {
                   cls = "afk_blocked";
@@ -571,27 +569,27 @@ public class AutoEnchanter extends BaseModule {
                   this.recordSale(var3);
                   this.stopRelistCycle();
                } else {
-                  if (var4.contains(this.normalizeLettersOnly("такого предмета не существует"))
-                     || var4.contains(this.normalizeLettersOnly("item does not exist"))
-                     || var4.contains(this.normalizeLettersOnly("no such item"))) {
+                  if (var4.contains(AutoEnchanterText.normalizeLettersOnly("такого предмета не существует"))
+                     || var4.contains(AutoEnchanterText.normalizeLettersOnly("item does not exist"))
+                     || var4.contains(AutoEnchanterText.normalizeLettersOnly("no such item"))) {
                      cls = "search_failed";
                      this.searchFailed = true;
                   }
 
-                  if (var4.contains(this.normalizeLettersOnly("нет денег"))
-                     || var4.contains(this.normalizeLettersOnly("недостаточно"))
-                     || var4.contains(this.normalizeLettersOnly("not enough"))
-                     || var4.contains(this.normalizeLettersOnly("no money"))) {
+                  if (var4.contains(AutoEnchanterText.normalizeLettersOnly("нет денег"))
+                     || var4.contains(AutoEnchanterText.normalizeLettersOnly("недостаточно"))
+                     || var4.contains(AutoEnchanterText.normalizeLettersOnly("not enough"))
+                     || var4.contains(AutoEnchanterText.normalizeLettersOnly("no money"))) {
                      cls = "buy_failed_no_money";
                      this.lastBuyFailed = true;
                      this.buyBlocked = true;
                   }
 
-                  if (var4.contains(this.normalizeLettersOnly("вы купили"))
-                     || var4.contains(this.normalizeLettersOnly("\u043a\u0443\u043f\u0438\u043b\u0438"))
-                     || var4.contains(this.normalizeLettersOnly("\u0443\u0441\u043f\u0435\u0448\u043d\u043e \u043a\u0443\u043f\u0438\u043b\u0438"))
-                     || var4.contains(this.normalizeLettersOnly("purchased"))
-                     || var4.contains(this.normalizeLettersOnly("you bought"))) {
+                  if (var4.contains(AutoEnchanterText.normalizeLettersOnly("вы купили"))
+                     || var4.contains(AutoEnchanterText.normalizeLettersOnly("\u043a\u0443\u043f\u0438\u043b\u0438"))
+                     || var4.contains(AutoEnchanterText.normalizeLettersOnly("\u0443\u0441\u043f\u0435\u0448\u043d\u043e \u043a\u0443\u043f\u0438\u043b\u0438"))
+                     || var4.contains(AutoEnchanterText.normalizeLettersOnly("purchased"))
+                     || var4.contains(AutoEnchanterText.normalizeLettersOnly("you bought"))) {
                      cls = "buy_success";
                      this.recordBuy(var3);
                      this.lastBuySuccess = true;
@@ -3010,7 +3008,7 @@ public class AutoEnchanter extends BaseModule {
 
    private boolean hasEnchantNeedles(class_1799 var1, String[] var2, boolean var3) {
       if (!var1.method_7960() && var2 != null && var2.length != 0) {
-         for (String var5 : this.getLoreLines(var1)) {
+         for (String var5 : this.classifier.getLoreLines(var1)) {
             if (this.lineHasNeedle(var5, var2, var3)) {
                return true;
             }
@@ -3024,32 +3022,21 @@ public class AutoEnchanter extends BaseModule {
 
    private boolean lineHasNeedle(String var1, String[] var2, boolean var3) {
       if (var1 != null && !var1.isBlank()) {
-         String var4 = this.normalizeLettersOnly(stripFormatting(var1));
-         return this.containsAnyNeedle(var4, var2) && (!var3 || this.lineHasLevelTwo(var1));
+         String var4 = AutoEnchanterText.normalizeLettersOnly(AutoEnchanterText.stripFormatting(var1));
+         return AutoEnchanterText.containsAnyNeedle(var4, var2) && (!var3 || this.lineHasLevelTwo(var1));
       } else {
          return false;
       }
-   }
-
-   private boolean containsAnyNeedle(String var1, String[] var2) {
-      for (String var6 : var2) {
-         String var7 = this.normalizeLettersOnly(var6);
-         if (!var7.isBlank() && var1.contains(var7)) {
-            return true;
-         }
-      }
-
-      return false;
    }
 
    private boolean hasBadEnchant(class_1799 var1) {
       if (var1.method_7960()) {
          return false;
-      } else if (this.isBadEnchantText(var1.method_7964().getString())) {
+      } else if (AutoEnchanterText.isBadEnchantText(var1.method_7964().getString())) {
          return true;
       } else {
-         for (String var3 : this.getLoreLines(var1)) {
-            if (this.isBadEnchantText(var3)) {
+         for (String var3 : this.classifier.getLoreLines(var1)) {
+            if (AutoEnchanterText.isBadEnchantText(var3)) {
                return true;
             }
          }
@@ -3057,7 +3044,7 @@ public class AutoEnchanter extends BaseModule {
          for (Entry var5 : var1.method_58657().method_57539()) {
             if (var5.getKey() != null
                && var5.getValue() > 0
-               && this.isBadEnchantText(((class_1887)((class_6880)var5.getKey()).comp_349()).comp_2686().getString())) {
+               && AutoEnchanterText.isBadEnchantText(((class_1887)((class_6880)var5.getKey()).comp_349()).comp_2686().getString())) {
                return true;
             }
          }
@@ -3069,11 +3056,11 @@ public class AutoEnchanter extends BaseModule {
    private boolean hasKnockbackEnchant(class_1799 var1) {
       if (var1.method_7960()) {
          return false;
-      } else if (this.isKnockbackText(var1.method_7964().getString())) {
+      } else if (AutoEnchanterText.isKnockbackText(var1.method_7964().getString())) {
          return true;
       } else {
-         for (String var3 : this.getLoreLines(var1)) {
-            if (this.isKnockbackText(var3)) {
+         for (String var3 : this.classifier.getLoreLines(var1)) {
+            if (AutoEnchanterText.isKnockbackText(var3)) {
                return true;
             }
          }
@@ -3081,35 +3068,11 @@ public class AutoEnchanter extends BaseModule {
          for (Entry var5 : var1.method_58657().method_57539()) {
             if (var5.getKey() != null
                && var5.getValue() > 0
-               && this.isKnockbackText(((class_1887)((class_6880)var5.getKey()).comp_349()).comp_2686().getString())) {
+               && AutoEnchanterText.isKnockbackText(((class_1887)((class_6880)var5.getKey()).comp_349()).comp_2686().getString())) {
                return true;
             }
          }
 
-         return false;
-      }
-   }
-
-   private boolean isBadEnchantText(String var1) {
-      if (var1 != null && !var1.isBlank()) {
-         String var2 = this.normalizeLettersOnly(stripFormatting(var1));
-         return var2.startsWith(this.normalizeLettersOnly("Нест"))
-            || var2.startsWith(this.normalizeLettersOnly("Тяж"))
-            || var2.contains(this.normalizeLettersOnly("Нестабильн"))
-            || var2.contains("unstable")
-            || var2.contains("heavy")
-            || var2.contains(this.normalizeLettersOnly("отдач"))
-            || var2.contains("knockback");
-      } else {
-         return false;
-      }
-   }
-
-   private boolean isKnockbackText(String var1) {
-      if (var1 != null && !var1.isBlank()) {
-         String var2 = this.normalizeLettersOnly(stripFormatting(var1));
-         return var2.contains(this.normalizeLettersOnly("отдач")) || var2.contains("knockback");
-      } else {
          return false;
       }
    }
@@ -3120,93 +3083,13 @@ public class AutoEnchanter extends BaseModule {
       } else if (!var1.method_58657().method_57534().isEmpty()) {
          return true;
       } else {
-         for (String var3 : this.getLoreLines(var1)) {
-            if (this.lineHasEnchantLevel(var3)) {
+         for (String var3 : this.classifier.getLoreLines(var1)) {
+            if (AutoEnchanterText.lineHasEnchantLevel(var3)) {
                return true;
             }
          }
 
          return false;
-      }
-   }
-
-   private int getSwordEnchantLevel(class_1799 var1, AutoEnchanter.SwordEnchantRequirement var2) {
-      int var3 = 0;
-
-      for (String var5 : this.getLoreLines(var1)) {
-         int var6 = this.extractLevelForNeedles(var5, var2.needles);
-         if (var6 > var3) {
-            var3 = var6;
-         }
-      }
-
-      return var3;
-   }
-
-   private int extractLevelForNeedles(String var1, String[] var2) {
-      String var3 = this.normalizeLettersOnly(stripFormatting(var1));
-      return !this.containsAnyNeedle(var3, var2) ? 0 : this.parseEnchantLevel(var1);
-   }
-
-   private int parseEnchantLevel(String var1) {
-      Matcher var2 = ENCHANT_LEVEL_PATTERN.matcher(stripFormatting(var1));
-      if (!var2.find()) {
-         return 0;
-      } else {
-         String var3 = var2.group(1).trim();
-         return var3.chars().allMatch(Character::isDigit) ? this.tryParseInt(var3) : this.romanToInt(var3);
-      }
-   }
-
-   private int tryParseInt(String var1) {
-      try {
-         return Integer.parseInt(var1);
-      } catch (NumberFormatException var3) {
-         return 0;
-      }
-   }
-
-   private int romanToInt(String var1) {
-      if (var1 != null && !var1.isBlank()) {
-         String var2 = var1.toUpperCase(Locale.ROOT)
-            .replace('Ⅰ', 'I')
-            .replace('Ⅱ', 'I')
-            .replace('Ⅲ', 'I')
-            .replace('Ⅳ', 'I')
-            .replace('Ⅴ', 'V')
-            .replace('Ⅵ', 'V')
-            .replace('Ⅶ', 'V')
-            .replace('Ⅷ', 'V')
-            .replace('Ⅸ', 'I')
-            .replace('Ⅹ', 'X')
-            .replace('ⅰ', 'I')
-            .replace('ⅱ', 'I')
-            .replace('ⅲ', 'I')
-            .replace('ⅳ', 'I')
-            .replace('ⅴ', 'V')
-            .replace('ⅵ', 'V')
-            .replace('ⅶ', 'V')
-            .replace('ⅷ', 'V')
-            .replace('ⅸ', 'I')
-            .replace('ⅹ', 'X')
-            .replace("LL", "II")
-            .replace('L', 'I');
-         int var3 = 0;
-         int var4 = 0;
-
-         for (int var5 = var2.length() - 1; var5 >= 0; var5--) {
-            int var6 = var2.charAt(var5) == 'I' ? 1 : (var2.charAt(var5) == 'V' ? 5 : (var2.charAt(var5) == 'X' ? 10 : 0));
-            if (var6 < var4) {
-               var3 -= var6;
-            } else {
-               var3 += var6;
-               var4 = var6;
-            }
-         }
-
-         return var3;
-      } else {
-         return 0;
       }
    }
 
@@ -3253,7 +3136,7 @@ public class AutoEnchanter extends BaseModule {
    private int countPickaxeEnchantLines(class_1799 var1) {
       int var2 = 0;
 
-      for (String var4 : this.getLoreLines(var1)) {
+      for (String var4 : this.classifier.getLoreLines(var1)) {
          if (this.isLikelyEnchantLine(var4)) {
             var2++;
          }
@@ -3263,42 +3146,42 @@ public class AutoEnchanter extends BaseModule {
    }
 
    private boolean isLikelyEnchantLine(String var1) {
-      String var2 = stripFormatting(var1).trim();
+      String var2 = AutoEnchanterText.stripFormatting(var1).trim();
       if (var2.isEmpty()) {
          return false;
       } else {
-         String var3 = this.normalizeLettersOnly(var2);
-         if (var3.contains(this.normalizeLettersOnly("когда"))
+         String var3 = AutoEnchanterText.normalizeLettersOnly(var2);
+         if (var3.contains(AutoEnchanterText.normalizeLettersOnly("когда"))
             || var3.contains("when")
-            || var3.contains(this.normalizeLettersOnly("прочн"))
+            || var3.contains(AutoEnchanterText.normalizeLettersOnly("прочн"))
             || var3.contains("durability")
-            || var3.contains(this.normalizeLettersOnly("цена"))
+            || var3.contains(AutoEnchanterText.normalizeLettersOnly("цена"))
             || var3.contains("price")
             || var2.contains("$")) {
             return false;
          } else if (var3.contains("attack")
             || var3.contains("damage")
             || var3.contains("speed")
-            || var3.contains(this.normalizeLettersOnly("урон"))
-            || var3.contains(this.normalizeLettersOnly("скорост"))) {
+            || var3.contains(AutoEnchanterText.normalizeLettersOnly("урон"))
+            || var3.contains(AutoEnchanterText.normalizeLettersOnly("скорост"))) {
             return false;
-         } else if (var3.contains(this.normalizeLettersOnly("продав"))
+         } else if (var3.contains(AutoEnchanterText.normalizeLettersOnly("продав"))
             || var3.contains("seller")
             || var3.contains("owner")
-            || var3.contains(this.normalizeLettersOnly("остал"))
+            || var3.contains(AutoEnchanterText.normalizeLettersOnly("остал"))
             || var3.contains("time")
             || var3.contains("ends")
-            || var3.contains(this.normalizeLettersOnly("аук"))
+            || var3.contains(AutoEnchanterText.normalizeLettersOnly("аук"))
             || var3.contains("auction")) {
             return false;
          } else {
-            return this.containsAnyNeedle(var3, this.getTargetEnchantNeedles())
+            return AutoEnchanterText.containsAnyNeedle(var3, this.getTargetEnchantNeedles())
                ? true
-               : !var3.startsWith(this.normalizeLettersOnly("Нест"))
-                  && !var3.startsWith(this.normalizeLettersOnly("Тяж"))
-                  && !var3.contains(this.normalizeLettersOnly("Нестабильн"))
+               : !var3.startsWith(AutoEnchanterText.normalizeLettersOnly("Нест"))
+                  && !var3.startsWith(AutoEnchanterText.normalizeLettersOnly("Тяж"))
+                  && !var3.contains(AutoEnchanterText.normalizeLettersOnly("Нестабильн"))
                   && !var3.contains("unstable")
-                  && this.lineHasEnchantLevel(var2);
+                  && AutoEnchanterText.lineHasEnchantLevel(var2);
          }
       }
    }
@@ -3326,11 +3209,7 @@ public class AutoEnchanter extends BaseModule {
    }
 
    private boolean lineHasLevelTwo(String var1) {
-      return ENCHANT_LEVEL_TWO_PATTERN.matcher(stripFormatting(var1)).find();
-   }
-
-   private boolean lineHasEnchantLevel(String var1) {
-      return ENCHANT_LEVEL_PATTERN.matcher(stripFormatting(var1)).find();
+      return ENCHANT_LEVEL_TWO_PATTERN.matcher(AutoEnchanterText.stripFormatting(var1)).find();
    }
 
    private long findCheapestUnitPrice(String var1) {
@@ -3338,7 +3217,7 @@ public class AutoEnchanter extends BaseModule {
          return -1L;
       } else {
          class_1703 var4 = var3.method_17577();
-         String var5 = this.normalizeLettersOnly(var1);
+         String var5 = AutoEnchanterText.normalizeLettersOnly(var1);
          long var6 = Long.MAX_VALUE;
 
          for (int var8 = 0; var8 < var4.field_7761.size(); var8++) {
@@ -3372,7 +3251,7 @@ public class AutoEnchanter extends BaseModule {
          return -1L;
       } else {
          class_1703 var4 = var3.method_17577();
-         String var5 = this.normalizeLettersOnly(var1);
+         String var5 = AutoEnchanterText.normalizeLettersOnly(var1);
          String[] var6 = this.getTargetEnchantNeedles();
          boolean var7 = this.targetRequiresLevelTwo();
          if (this.sellPriceMode.is(this.priceMarket) && this.isPickaxeMode()) {
@@ -3417,10 +3296,42 @@ public class AutoEnchanter extends BaseModule {
    }
 
    private int findCheapestSlot(class_1703 var1, String var2, boolean var3, int var4) {
-      String var5 = this.normalizeLettersOnly(var2);
+      String var5 = AutoEnchanterText.normalizeLettersOnly(var2);
       int var16 = this.getAuctionListingSlotLimit(var4);
       long var6 = Long.MAX_VALUE;
       int var8 = -1;
+
+      // ---- PATCH: sword-search diagnostics (why is no sword matched?) ----
+      if (this.isSwordMode() && AutoEnchanterText.isSwordAuctionNeedle(var5)) {
+         int diagNonEmpty = 0;
+         int diagSwords = 0;
+         for (int d = 0; d < var16; d++) {
+            class_1799 ds = ((class_1735) var1.field_7761.get(d)).method_7677();
+            if (ds.method_7960()) continue;
+            diagNonEmpty++;
+            if (ds.method_7909() != class_1802.field_22022) continue;
+            diagSwords++;
+            long dprice = this.extractPrice(ds);
+            moscow.mytheria.logger.MytheriaLogger.event("sword_candidate")
+               .with("slot", d)
+               .with("name", this.classifier.getItemName(ds))
+               .with("price", dprice)
+               .with("priceAllowed", this.isSwordAuctionPriceAllowed(ds))
+               .with("sharpLevel", this.classifier.getSwordEnchantLevel(ds, SWORD_REQUIREMENTS[0]))
+               .with("isSharp7", this.isSharpnessSword(ds))
+               .with("isClean", this.isCleanNetheriteSword(ds))
+               .with("hasBad", this.hasBadEnchant(ds))
+               .emit();
+         }
+         moscow.mytheria.logger.MytheriaLogger.event("sword_search_scan")
+            .with("query", var2)
+            .with("slotLimit", var16)
+            .with("nonEmpty", diagNonEmpty)
+            .with("netheriteSwords", diagSwords)
+            .with("haveSharpAlready", this.countSharpnessSwords())
+            .emit();
+      }
+      // ---- END PATCH ----
 
       for (int var9 = 0; var9 < var16; var9++) {
          class_1799 var14 = ((class_1735)var1.field_7761.get(var9)).method_7677();
@@ -3431,7 +3342,7 @@ public class AutoEnchanter extends BaseModule {
             && this.matchesQuery(var14, var5)
             && (
                !this.isSwordMode()
-                  || !this.isSwordAuctionNeedle(var5)
+                  || !AutoEnchanterText.isSwordAuctionNeedle(var5)
                   || this.isSwordAuctionPriceAllowed(var14)
                      && (this.countSharpnessSwords() <= 0 ? this.isSharpnessSword(var14) : this.isCleanNetheriteSword(var14))
             )
@@ -3471,22 +3382,22 @@ public class AutoEnchanter extends BaseModule {
    private boolean matchesQuery(class_1799 var1, String var2) {
       if (var2 == null || var2.isBlank()) {
          return false;
-      } else if (this.isSwordAuctionNeedle(var2)) {
+      } else if (AutoEnchanterText.isSwordAuctionNeedle(var2)) {
          return var1.method_7909() == class_1802.field_22022;
-      } else if (this.isXpNeedle(var2)) {
+      } else if (AutoEnchanterText.isXpNeedle(var2)) {
          return var1.method_7909() == class_1802.field_8287;
-      } else if (this.isWoodNeedle(var2)) {
+      } else if (AutoEnchanterText.isWoodNeedle(var2)) {
          return this.isLogItem(var1) || this.isPlankItem(var1);
-      } else if (var2.contains(this.normalizeLettersOnly("лазурит")) || var2.contains("lapis")) {
+      } else if (var2.contains(AutoEnchanterText.normalizeLettersOnly("лазурит")) || var2.contains("lapis")) {
          return var1.method_7909() == class_1802.field_8759;
-      } else if (!var2.contains(this.normalizeLettersOnly("алмаз")) && !var2.contains("diamond")) {
-         if (!var2.contains(this.normalizeLettersOnly("незерит")) && !var2.contains("netherite")) {
-            String var3 = this.normalizeLettersOnly(this.getItemName(var1));
+      } else if (!var2.contains(AutoEnchanterText.normalizeLettersOnly("алмаз")) && !var2.contains("diamond")) {
+         if (!var2.contains(AutoEnchanterText.normalizeLettersOnly("незерит")) && !var2.contains("netherite")) {
+            String var3 = AutoEnchanterText.normalizeLettersOnly(this.classifier.getItemName(var1));
             if (var3.contains(var2)) {
                return true;
             } else {
-               for (String var5 : this.getLoreLines(var1)) {
-                  if (this.normalizeLettersOnly(stripFormatting(var5)).contains(var2)) {
+               for (String var5 : this.classifier.getLoreLines(var1)) {
+                  if (AutoEnchanterText.normalizeLettersOnly(AutoEnchanterText.stripFormatting(var5)).contains(var2)) {
                      return true;
                   }
                }
@@ -3602,14 +3513,6 @@ public class AutoEnchanter extends BaseModule {
       }
 
       return -1;
-   }
-
-   private boolean isXpNeedle(String var1) {
-      return var1.contains("опыт") || var1.contains("уров") || var1.contains("level") || var1.contains("exp");
-   }
-
-   private boolean isWoodNeedle(String var1) {
-      return var1.contains("дерев") || var1.contains("wood") || var1.contains("log");
    }
 
    private String getXpSearchQuery() {
@@ -3960,24 +3863,24 @@ public class AutoEnchanter extends BaseModule {
    }
 
    private boolean isPlankItem(class_1799 var1) {
-      String var2 = this.normalizeLettersOnly(this.getItemName(var1));
-      return var2.contains("plank") || var2.contains(this.normalizeLettersOnly("доск"));
+      String var2 = AutoEnchanterText.normalizeLettersOnly(this.classifier.getItemName(var1));
+      return var2.contains("plank") || var2.contains(AutoEnchanterText.normalizeLettersOnly("доск"));
    }
 
    private boolean isLogItem(class_1799 var1) {
-      String var2 = this.normalizeLettersOnly(this.getItemName(var1));
+      String var2 = AutoEnchanterText.normalizeLettersOnly(this.classifier.getItemName(var1));
       return var2.contains("log")
          || var2.contains("wood")
-         || var2.contains(this.normalizeLettersOnly("бревн"))
-         || var2.contains(this.normalizeLettersOnly("дерев"));
+         || var2.contains(AutoEnchanterText.normalizeLettersOnly("бревн"))
+         || var2.contains(AutoEnchanterText.normalizeLettersOnly("дерев"));
    }
 
    private boolean isSearchScreen() {
       if (!(mc.field_1755 instanceof class_465 var2)) {
          return false;
       } else {
-         String var3 = this.normalizeLettersOnly(stripFormatting(var2.method_25440().getString()).toLowerCase(Locale.ROOT));
-         return var3.contains(this.normalizeLettersOnly("поиск")) || var3.contains("search") || var3.contains(this.normalizeLettersOnly("аукцион"));
+         String var3 = AutoEnchanterText.normalizeLettersOnly(AutoEnchanterText.stripFormatting(var2.method_25440().getString()).toLowerCase(Locale.ROOT));
+         return var3.contains(AutoEnchanterText.normalizeLettersOnly("поиск")) || var3.contains("search") || var3.contains(AutoEnchanterText.normalizeLettersOnly("аукцион"));
       }
    }
 
@@ -3985,8 +3888,8 @@ public class AutoEnchanter extends BaseModule {
       if (!(mc.field_1755 instanceof class_465 var2)) {
          return false;
       } else {
-         String var3 = this.normalizeLettersOnly(stripFormatting(var2.method_25440().getString()).toLowerCase(Locale.ROOT));
-         return var3.contains(this.normalizeLettersOnly("аукцион")) || var3.contains("auction");
+         String var3 = AutoEnchanterText.normalizeLettersOnly(AutoEnchanterText.stripFormatting(var2.method_25440().getString()).toLowerCase(Locale.ROOT));
+         return var3.contains(AutoEnchanterText.normalizeLettersOnly("аукцион")) || var3.contains("auction");
       }
    }
 
@@ -3994,8 +3897,8 @@ public class AutoEnchanter extends BaseModule {
       if (!(mc.field_1755 instanceof class_465 var2)) {
          return false;
       } else {
-         String var3 = this.normalizeLettersOnly(stripFormatting(var2.method_25440().getString()).toLowerCase(Locale.ROOT));
-         return var3.contains(this.normalizeLettersOnly("хранилище")) || var3.contains("storage");
+         String var3 = AutoEnchanterText.normalizeLettersOnly(AutoEnchanterText.stripFormatting(var2.method_25440().getString()).toLowerCase(Locale.ROOT));
+         return var3.contains(AutoEnchanterText.normalizeLettersOnly("хранилище")) || var3.contains("storage");
       }
    }
 
@@ -4003,9 +3906,9 @@ public class AutoEnchanter extends BaseModule {
       if (!(mc.field_1755 instanceof class_465 var2)) {
          return false;
       } else {
-         String var3 = stripFormatting(var2.method_25440().getString()).toLowerCase(Locale.ROOT);
-         String var4 = this.normalizeLettersOnly(var3);
-         return !var4.contains(this.normalizeLettersOnly("подтверд")) && !var4.contains(this.normalizeLettersOnly("куп"))
+         String var3 = AutoEnchanterText.stripFormatting(var2.method_25440().getString()).toLowerCase(Locale.ROOT);
+         String var4 = AutoEnchanterText.normalizeLettersOnly(var3);
+         return !var4.contains(AutoEnchanterText.normalizeLettersOnly("подтверд")) && !var4.contains(AutoEnchanterText.normalizeLettersOnly("куп"))
             ? var3.contains("confirm") || var3.contains("buy") || var3.contains("purchase")
             : true;
       }
@@ -4087,30 +3990,30 @@ public class AutoEnchanter extends BaseModule {
    }
 
    private boolean hasKeywords(class_1799 var1, String... var2) {
-      String var3 = stripFormatting(var1.method_7964().getString()).toLowerCase(Locale.ROOT);
-      String var4 = this.normalizeLettersOnly(var3);
+      String var3 = AutoEnchanterText.stripFormatting(var1.method_7964().getString()).toLowerCase(Locale.ROOT);
+      String var4 = AutoEnchanterText.normalizeLettersOnly(var3);
 
       for (String var8 : var2) {
          if (var3.contains(var8)) {
             return true;
          }
 
-         String var9 = this.normalizeLettersOnly(var8);
+         String var9 = AutoEnchanterText.normalizeLettersOnly(var8);
          if (!var9.isEmpty() && var4.contains(var9)) {
             return true;
          }
       }
 
-      for (String var15 : this.getLoreLines(var1)) {
-         String var16 = stripFormatting(var15).toLowerCase(Locale.ROOT);
-         String var17 = this.normalizeLettersOnly(var16);
+      for (String var15 : this.classifier.getLoreLines(var1)) {
+         String var16 = AutoEnchanterText.stripFormatting(var15).toLowerCase(Locale.ROOT);
+         String var17 = AutoEnchanterText.normalizeLettersOnly(var16);
 
          for (String var12 : var2) {
             if (var16.contains(var12)) {
                return true;
             }
 
-            String var13 = this.normalizeLettersOnly(var12);
+            String var13 = AutoEnchanterText.normalizeLettersOnly(var12);
             if (!var13.isEmpty() && var17.contains(var13)) {
                return true;
             }
@@ -4121,10 +4024,10 @@ public class AutoEnchanter extends BaseModule {
    }
 
    private long extractPrice(class_1799 var1) {
-      for (String var3 : this.getLoreLines(var1)) {
-         String var6 = stripFormatting(var3).toLowerCase(Locale.ROOT);
+      for (String var3 : this.classifier.getLoreLines(var1)) {
+         String var6 = AutoEnchanterText.stripFormatting(var3).toLowerCase(Locale.ROOT);
          long var4;
-         if ((var6.contains("$") || var6.contains("price") || this.normalizeLettersOnly(var6).contains(this.normalizeLettersOnly("цена")))
+         if ((var6.contains("$") || var6.contains("price") || AutoEnchanterText.normalizeLettersOnly(var6).contains(AutoEnchanterText.normalizeLettersOnly("цена")))
             && (var4 = this.parseMoney(var6)) > 0L) {
             return var4;
          }
@@ -4155,25 +4058,8 @@ public class AutoEnchanter extends BaseModule {
       }
    }
 
-   private List<String> getLoreLines(class_1799 var1) {
-      ArrayList var2 = new ArrayList();
-      class_9290 var3 = (class_9290)var1.method_57824(class_9334.field_49632);
-      if (var3 != null) {
-         for (class_2561 var5 : var3.comp_2400()) {
-            var2.add(var5.getString());
-         }
-      }
-
-      return var2;
-   }
-
-   private String getItemName(class_1799 var1) {
-      String var2 = var1.method_7964().getString();
-      return var2 != null && !var2.isBlank() ? stripFormatting(var2) : stripFormatting(var1.method_7909().method_63680().getString());
-   }
-
    private String buildSearchName(class_1799 var1) {
-      return this.applySearchNameOverrides(var1, this.sanitizeSearchName(this.getItemName(var1), false));
+      return this.applySearchNameOverrides(var1, this.sanitizeSearchName(this.classifier.getItemName(var1), false));
    }
 
    private String applySearchNameOverrides(class_1799 var1, String var2) {
@@ -4181,7 +4067,7 @@ public class AutoEnchanter extends BaseModule {
    }
 
    private String sanitizeSearchName(String var1, boolean var2) {
-      String var3 = stripFormatting(var1).replace("\"", "").replaceAll("\\s*\\[[^\\]]*\\]$", "");
+      String var3 = AutoEnchanterText.stripFormatting(var1).replace("\"", "").replaceAll("\\s*\\[[^\\]]*\\]$", "");
       return var2 ? this.stripToLettersDigitsAndSpaces(var3) : this.stripToLettersAndSpaces(var3);
    }
 
@@ -4191,14 +4077,6 @@ public class AutoEnchanter extends BaseModule {
 
    private String stripToLettersDigitsAndSpaces(String var1) {
       return var1 == null ? "" : var1.replaceAll("[^\\p{L}\\p{N}\\s]+", " ").replaceAll("\\s{2,}", " ").trim();
-   }
-
-   private static String stripFormatting(String var0) {
-      return var0 == null ? "" : var0.replaceAll("(?i)\\u00A7[0-9A-FK-OR]", "");
-   }
-
-   private String normalizeLettersOnly(String var1) {
-      return var1 == null ? "" : var1.toLowerCase(Locale.ROOT).replaceAll("[^\\p{L}]+", "");
    }
 
    private int inventoryIndexToSlotId(int var1) {
@@ -4512,7 +4390,7 @@ public class AutoEnchanter extends BaseModule {
          this.auctionStuckActive = false;
          this.auctionStuckTitle = "";
       } else {
-         String var3 = this.normalizeLettersOnly(stripFormatting(var2.method_25440().getString()).toLowerCase(Locale.ROOT));
+         String var3 = AutoEnchanterText.normalizeLettersOnly(AutoEnchanterText.stripFormatting(var2.method_25440().getString()).toLowerCase(Locale.ROOT));
          if (!this.isSearchScreen() && !this.isAuctionMainScreen() && !this.isStorageScreen() && !this.isConfirmScreen()) {
             this.auctionStuckActive = false;
             this.auctionStuckTitle = "";
@@ -4636,18 +4514,18 @@ public class AutoEnchanter extends BaseModule {
    }
 
    private boolean containsAfkKeywords(String var1) {
-      String var2 = this.normalizeLettersOnly(var1.toLowerCase(Locale.ROOT));
-      return (var2.contains("afk") || var2.contains(this.normalizeLettersOnly("афк")))
-         && (var2.contains(this.normalizeLettersOnly("команд")) || var1.contains("command"))
-         && (var2.contains(this.normalizeLettersOnly("недоступ")) || var1.contains("not available"));
+      String var2 = AutoEnchanterText.normalizeLettersOnly(var1.toLowerCase(Locale.ROOT));
+      return (var2.contains("afk") || var2.contains(AutoEnchanterText.normalizeLettersOnly("афк")))
+         && (var2.contains(AutoEnchanterText.normalizeLettersOnly("команд")) || var1.contains("command"))
+         && (var2.contains(AutoEnchanterText.normalizeLettersOnly("недоступ")) || var1.contains("not available"));
    }
 
    private boolean isStorageFullMessage(String var1) {
-      return var1.contains(this.normalizeLettersOnly("Освободите хранилище")) || var1.contains(this.normalizeLettersOnly("уберите предметы с продаж"));
+      return var1.contains(AutoEnchanterText.normalizeLettersOnly("Освободите хранилище")) || var1.contains(AutoEnchanterText.normalizeLettersOnly("уберите предметы с продаж"));
    }
 
    private boolean isSoldMessage(String var1) {
-      return var1.contains(this.normalizeLettersOnly("У вас купили")) || var1.contains("you sold");
+      return var1.contains(AutoEnchanterText.normalizeLettersOnly("У вас купили")) || var1.contains("you sold");
    }
 
    private void recordSale(String var1) {
@@ -4663,7 +4541,7 @@ public class AutoEnchanter extends BaseModule {
       long var2 = this.parseMoney(var1);
       if (var2 > 0L) {
          long var4 = System.currentTimeMillis();
-         String var6 = stripFormatting(var1).trim();
+         String var6 = AutoEnchanterText.stripFormatting(var1).trim();
          if (var6.equals(this.lastBuyRecordText) && var4 - this.lastBuyRecordAtMs < 1500L) {
             return;
          }
@@ -4941,19 +4819,12 @@ public class AutoEnchanter extends BaseModule {
          || this.countCleanNetheriteSwords() <= 0 && this.countPoisonSwords() <= 0;
    }
 
-   private boolean isSwordAuctionNeedle(String var1) {
-      return var1 != null
-         && !var1.isBlank()
-         && (var1.contains(this.normalizeLettersOnly("незерит")) || var1.contains("netherite"))
-         && (var1.contains(this.normalizeLettersOnly("меч")) || var1.contains("sword"));
-   }
-
    private boolean isSharpnessSword(class_1799 var1) {
       return var1 != null
          && !var1.method_7960()
          && var1.method_7909() == class_1802.field_22022
          && !this.hasBadEnchant(var1)
-         && this.getSwordEnchantLevel(var1, SWORD_REQUIREMENTS[0]) >= 7;
+         && this.classifier.getSwordEnchantLevel(var1, SWORD_REQUIREMENTS[0]) >= 7;
    }
 
    private boolean isCleanNetheriteSword(class_1799 var1) {
@@ -5136,7 +5007,7 @@ public class AutoEnchanter extends BaseModule {
          return null;
       }
 
-      String var2 = stripFormatting(var1.method_25440().getString());
+      String var2 = AutoEnchanterText.stripFormatting(var1.method_25440().getString());
       Matcher var3 = AUCTION_PAGE_PATTERN.matcher(var2);
       if (!var3.find()) {
          return null;
@@ -5172,12 +5043,12 @@ public class AutoEnchanter extends BaseModule {
    }
 
    private boolean stackContainsText(class_1799 var1, String... var2) {
-      if (this.textContainsAnyNeedle(this.getItemName(var1), var2)) {
+      if (this.textContainsAnyNeedle(this.classifier.getItemName(var1), var2)) {
          return true;
       }
 
-      for (String var4 : this.getLoreLines(var1)) {
-         if (this.textContainsAnyNeedle(stripFormatting(var4), var2)) {
+      for (String var4 : this.classifier.getLoreLines(var1)) {
+         if (this.textContainsAnyNeedle(AutoEnchanterText.stripFormatting(var4), var2)) {
             return true;
          }
       }
@@ -5186,10 +5057,10 @@ public class AutoEnchanter extends BaseModule {
    }
 
    private boolean textContainsAnyNeedle(String var1, String... var2) {
-      String var3 = this.normalizeLettersOnly(var1);
+      String var3 = AutoEnchanterText.normalizeLettersOnly(var1);
 
       for (String var6 : var2) {
-         String var5 = this.normalizeLettersOnly(var6);
+         String var5 = AutoEnchanterText.normalizeLettersOnly(var6);
          if (!var5.isBlank() && var3.contains(var5)) {
             return true;
          }
@@ -5825,15 +5696,4 @@ public class AutoEnchanter extends BaseModule {
       RELIST_CLICK_RELIST;
    }
 
-   private static class SwordEnchantRequirement {
-      final String id;
-      final String[] needles;
-      final int level;
-
-      SwordEnchantRequirement(String id, String[] needles, int level) {
-         this.id = id;
-         this.needles = needles;
-         this.level = level;
-      }
-   }
 }
