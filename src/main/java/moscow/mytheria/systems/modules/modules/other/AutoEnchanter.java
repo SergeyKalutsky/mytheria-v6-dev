@@ -3333,6 +3333,23 @@ public class AutoEnchanter extends BaseModule {
       }
       // ---- END PATCH ----
 
+      // Second sword: prefer an affordable Яд≥2 sword if one is on this page; only if
+      // none is present do we fall back to a plain "clean" (no Unstable/Heavy) sword.
+      boolean preferPoison = false;
+      if (this.isSwordMode() && AutoEnchanterText.isSwordAuctionNeedle(var5) && this.countSharpnessSwords() > 0) {
+         for (int d = 0; d < var16; d++) {
+            class_1799 ds = ((class_1735) var1.field_7761.get(d)).method_7677();
+            if (!ds.method_7960()
+               && ds.method_7909() == class_1802.field_22022
+               && this.isPoisonSword(ds)
+               && this.isSwordAuctionPriceAllowed(ds)
+               && this.extractPrice(ds) > 0L) {
+               preferPoison = true;
+               break;
+            }
+         }
+      }
+
       for (int var9 = 0; var9 < var16; var9++) {
          class_1799 var14 = ((class_1735)var1.field_7761.get(var9)).method_7677();
          long var10;
@@ -3344,7 +3361,9 @@ public class AutoEnchanter extends BaseModule {
                !this.isSwordMode()
                   || !AutoEnchanterText.isSwordAuctionNeedle(var5)
                   || this.isSwordAuctionPriceAllowed(var14)
-                     && (this.countSharpnessSwords() <= 0 ? this.isSharpnessSword(var14) : this.isCleanNetheriteSword(var14))
+                     && (this.countSharpnessSwords() <= 0
+                            ? this.isSharpnessSword(var14)
+                            : (preferPoison ? this.isPoisonSword(var14) : this.isCleanNetheriteSword(var14)))
             )
             && (!var3 || this.isTargetOutputItem(var14) && this.hasTargetEnchant(var14) && !this.isBadAuctionPickaxe(var14))
             && (var12 = this.extractPrice(var14)) > 0L
