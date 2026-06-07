@@ -4827,8 +4827,19 @@ public class AutoEnchanter extends BaseModule {
          && this.classifier.getSwordEnchantLevel(var1, SWORD_REQUIREMENTS[0]) >= 7;
    }
 
+   // Enchants that disqualify a sword as "clean" (can't be ground off / unwanted).
+   private static final String[] UNSTABLE_NEEDLES = {"Нестабильн", "Unstable"};
+   private static final String[] HEAVY_NEEDLES = {"Тяжел", "Heavy"};
+
+   // A "clean" netherite sword = any netherite sword WITHOUT Нестабильный (Unstable)
+   // or Тяжелый (Heavy). It does NOT require zero enchantments (those don't exist on
+   // the AH). Price is checked separately in findCheapestSlot.
    private boolean isCleanNetheriteSword(class_1799 var1) {
-      return var1 != null && !var1.method_7960() && var1.method_7909() == class_1802.field_22022 && !this.hasBadEnchant(var1) && !this.hasAnyEnchant(var1);
+      return var1 != null
+         && !var1.method_7960()
+         && var1.method_7909() == class_1802.field_22022
+         && !this.classifier.hasEnchant(var1, UNSTABLE_NEEDLES)
+         && !this.classifier.hasEnchant(var1, HEAVY_NEEDLES);
    }
 
    /** Minimum Яд (Poison) level worth keeping. Яд 1 is not worth it. */

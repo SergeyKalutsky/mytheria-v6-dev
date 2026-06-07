@@ -61,6 +61,27 @@ final class ItemClassifier {
         return getEnchantLevel(stack, req.needles);
     }
 
+    /** True if the enchant identified by {@code needles} is present at any level (lore + component). */
+    boolean hasEnchant(class_1799 stack, String[] needles) {
+        for (String line : getLoreLines(stack)) {
+            String norm = AutoEnchanterText.normalizeLettersOnly(AutoEnchanterText.stripFormatting(line));
+            if (AutoEnchanterText.containsAnyNeedle(norm, needles)) {
+                return true;
+            }
+        }
+        for (Entry entry : stack.method_58657().method_57539()) {
+            if (entry.getKey() == null || entry.getValue() <= 0) {
+                continue;
+            }
+            String name = ((class_1887) ((class_6880) entry.getKey()).comp_349()).comp_2686().getString();
+            String norm = AutoEnchanterText.normalizeLettersOnly(AutoEnchanterText.stripFormatting(name));
+            if (AutoEnchanterText.containsAnyNeedle(norm, needles)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /**
      * Highest level of the enchant identified by {@code needles}, read from BOTH
      * the custom lore AND the vanilla enchantment component. Works for vanilla
